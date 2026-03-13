@@ -1,0 +1,140 @@
+import { useCallback } from 'react';
+import * as Crypto from 'expo-crypto';
+import { getDatabase } from '@/lib/sqlite';
+import { logger } from '@/lib/logger';
+import { useDiaryStore, type LocalDiaryEntry } from '@/stores/diaryStore';
+import { addToSyncQueue } from '@/services/syncService';
+import { useAuthStore } from '@/stores/authStore';
+
+export interface CreateEntryData {
+  entry_date: string;
+  text_content?: string;
+  audio_local_uri?: string;
+  mood?: string;
+}
+
+export interface UpdateEntryData {
+  text_content?: string;
+  audio_local_uri?: string;
+  mood?: string;
+}
+
+export interface UseDiaryEntryReturn {
+  entries: LocalDiaryEntry[];
+  allEntryDates: Set<string>;
+  createEntry: (data: CreateEntryData) => Promise<LocalDiaryEntry>;
+  updateEntry: (id: string, data: UpdateEntryData) => Promise<void>;
+  deleteEntry: (id: string) => Promise<void>;
+}
+
+export function useDiaryEntry(): UseDiaryEntryReturn {
+  const {
+    selectedDate,
+    getEntriesForDate,
+    getEntryDates,
+    addEntry,
+    updateEntry: storeUpdate,
+    deleteEntry: storeDelete,
+  } = useDiaryStore();
+
+  const { session } = useAuthStore();
+
+  const entries = getEntriesForDate(selectedDate);
+  const allEntryDates = getEntryDates();
+
+  const createEntry = useCallback(
+    async (data: CreateEntryData): Promise<LocalDiaryEntry> => {
+      const localId = Crypto.randomUUID();
+      const now = new Date().toISOString();
+
+      const newEntry: LocalDiaryEntry = {
+        local_id: localId,
+        entry_date: data.entry_date,
+        text_content: data.text_content ?? null,
+        audio_local_uri: data.audio_local_uri ?? null,
+        mood: data.mood ?? null,
+        sync_status: 'pending',
+        remote_id: null,
+        created_at: now,
+        updated_at: now,
+        images: [],
+      };
+
+      const db = getDatabase();
+      await db.runAsync(
+        `INSERT INTO diary_entries
+           (local_id, entry_date, text_content, audio_local_uri, mood, sync_status, remote_id, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, 'pending', NULL, ?, ?)`,
+        [
+          localId,
+          data.entry_date,
+          data.text_content ?? null,
+          data.audio_local_uri ?? null,
+          data.mood ?? null,
+          now,
+          now,
+        ],
+      );
+
+      addEntry(newEntry);
+
+      await addToSyncQueue('create_entry', {
+        localId,
+        entryDate: data.entry_date,
+        textContent: data.text_content ?? '',
+        userId: session?.user.id,
+      });
+
+      logger.info('Diary entry created', { localId });
+      return newEntry;
+    },
+    [addEntry, session],
+  );
+
+  const updateEntry = useCallback(
+    async (id: string, data: UpdateEntryData): Promise<void> => {
+      const now = new Date().toISOString();
+
+      const db = getDatabase();
+      await db.runAsync(
+        `UPDATE diary_entries
+         SET text_content = COALESCE(?, text_content),
+             audio_local_uri = COALESCE(?, audio_local_uri),
+             mood = COALESCE(?, mood),
+             sync_status = 'pending',
+             updated_at = ?
+         WHERE local_id = ?`,
+        [
+          data.text_content ?? null,
+          data.audio_local_uri ?? null,
+          data.mood ?? null,
+          now,
+          id,
+        ],
+      );
+
+      storeUpdate(id, { ...data, sync_status: 'pending', updated_at: now });
+
+      await addToSyncQueue('update_entry', {
+        localId: id,
+        textContent: data.text_content,
+        userId: session?.user.id,
+      });
+
+      logger.info('Diary entry updated', { id });
+    },
+    [storeUpdate, session],
+  );
+
+  const deleteEntry = useCallback(
+    async (id: string): Promise<void> => {
+      const db = getDatabase();
+      await db.runAsync(`DELETE FROM diary_entries WHERE local_id = ?`, [id]);
+      storeDelete(id);
+      logger.info('Diary entry deleted', { id });
+    },
+    [storeDelete],
+  );
+
+  return { entries, allEntryDates, createEntry, updateEntry, deleteEntry };
+}
