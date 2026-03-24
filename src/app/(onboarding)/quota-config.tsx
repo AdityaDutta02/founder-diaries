@@ -11,9 +11,9 @@ import {
 import { Button, StepDots, useToast } from '@/components/ui';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeContext';
 import { borderRadius, spacing } from '@/theme/spacing';
-import { typography } from '@/theme/typography';
+import { fontFamily, typography } from '@/theme/typography';
 
 interface EnabledPlatform {
   id: string;
@@ -24,6 +24,7 @@ const POST_COUNTS = [1, 2, 3, 4, 5, 6, 7] as const;
 type PostCount = (typeof POST_COUNTS)[number];
 
 export default function QuotaConfigScreen() {
+  const { colors } = useTheme();
   const toast = useToast();
   const params = useLocalSearchParams<{
     industry: string;
@@ -99,8 +100,8 @@ export default function QuotaConfigScreen() {
       const platformRows = enabledPlatforms.map((p) => ({
         user_id: userId,
         platform: p.id,
-        weekly_quota: quotas[p.id] ?? 3,
-        content_types: p.contentTypes,
+        weekly_post_quota: quotas[p.id] ?? 3,
+        preferred_content_types: p.contentTypes,
         is_active: true,
       }));
 
@@ -114,8 +115,8 @@ export default function QuotaConfigScreen() {
         }
       }
 
-      router.replace('/(tabs)');
-    } catch (err) {
+      router.replace('/(tabs)/diary');
+    } catch {
       toast.show('An unexpected error occurred. Please try again.', 'error');
     } finally {
       setIsLoading(false);
@@ -123,7 +124,10 @@ export default function QuotaConfigScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} testID="quota-config-screen">
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: colors.background }}
+      testID="quota-config-screen"
+    >
       <ScrollView
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
@@ -136,14 +140,28 @@ export default function QuotaConfigScreen() {
           accessibilityLabel="Go back"
           testID="back-button"
         >
-          <Text style={styles.backText}>← Back</Text>
+          <Text style={[typography.bodyMd, { color: colors.accent, fontFamily: fontFamily.medium }]}>
+            ← Back
+          </Text>
         </Pressable>
 
-        <Text style={styles.heading}>How often do you want to post?</Text>
+        <Text style={[typography.headingXl, { color: colors.textPrimary }]}>
+          How often do you want to post?
+        </Text>
 
         {enabledPlatforms.length === 0 ? (
-          <View style={styles.emptyNote} testID="no-platforms-note">
-            <Text style={styles.emptyNoteText}>
+          <View
+            style={[
+              styles.emptyNote,
+              {
+                backgroundColor: colors.surface2,
+                borderColor: colors.border,
+                borderRadius: borderRadius.md,
+              },
+            ]}
+            testID="no-platforms-note"
+          >
+            <Text style={[typography.bodyMd, { color: colors.textSecondary, textAlign: 'center' }]}>
               No platforms selected. Go back and enable at least one.
             </Text>
           </View>
@@ -152,35 +170,129 @@ export default function QuotaConfigScreen() {
             {enabledPlatforms.map((platform) => {
               const currentQuota = quotas[platform.id] ?? 3;
               return (
-                <View key={platform.id} style={styles.quotaRow} testID={`quota-row-${platform.id}`}>
-                  <Text style={styles.platformLabel}>
-                    {platform.id.charAt(0).toUpperCase() + platform.id.slice(1)}
-                  </Text>
-                  <Text style={styles.quotaValue}>{currentQuota}/week</Text>
-                  <View style={styles.countRow} testID={`quota-selector-${platform.id}`}>
-                    {POST_COUNTS.map((count) => (
-                      <Pressable
-                        key={count}
-                        onPress={() => setQuota(platform.id, count)}
+                <View
+                  key={platform.id}
+                  style={[
+                    styles.quotaCard,
+                    {
+                      backgroundColor: colors.surface,
+                      borderColor: colors.border,
+                      borderRadius: borderRadius.lg,
+                    },
+                  ]}
+                  testID={`quota-row-${platform.id}`}
+                >
+                  <View style={styles.quotaCardHeader}>
+                    <Text style={[typography.headingSm, { color: colors.textPrimary }]}>
+                      {platform.id.charAt(0).toUpperCase() + platform.id.slice(1)}
+                    </Text>
+                    <Text
+                      style={[
+                        typography.numericMd,
+                        { color: colors.accent, fontFamily: fontFamily.bold },
+                      ]}
+                    >
+                      {currentQuota}
+                      <Text style={[typography.bodyMd, { color: colors.textSecondary }]}>
+                        /week
+                      </Text>
+                    </Text>
+                  </View>
+
+                  {/* Stepper row */}
+                  <View style={styles.stepperRow} testID={`quota-selector-${platform.id}`}>
+                    {/* Minus */}
+                    <Pressable
+                      onPress={() => {
+                        const idx = POST_COUNTS.indexOf(currentQuota);
+                        if (idx > 0) setQuota(platform.id, POST_COUNTS[idx - 1]);
+                      }}
+                      style={[
+                        styles.stepperButton,
+                        {
+                          backgroundColor: colors.surface2,
+                          borderColor: colors.border,
+                          borderRadius: borderRadius.sm,
+                        },
+                      ]}
+                      accessibilityRole="button"
+                      accessibilityLabel="Decrease posts per week"
+                      testID={`quota-minus-${platform.id}`}
+                    >
+                      <Text
                         style={[
-                          styles.countButton,
-                          currentQuota === count && styles.countButtonActive,
+                          styles.stepperIcon,
+                          { color: colors.textPrimary, fontFamily: fontFamily.bold },
                         ]}
-                        accessibilityRole="radio"
-                        accessibilityState={{ checked: currentQuota === count }}
-                        accessibilityLabel={`${count} posts per week`}
-                        testID={`quota-count-${platform.id}-${count}`}
                       >
-                        <Text
+                        −
+                      </Text>
+                    </Pressable>
+
+                    {/* Count chips */}
+                    <View style={styles.countRow}>
+                      {POST_COUNTS.map((count) => (
+                        <Pressable
+                          key={count}
+                          onPress={() => setQuota(platform.id, count)}
                           style={[
-                            styles.countLabel,
-                            currentQuota === count && styles.countLabelActive,
+                            styles.countButton,
+                            {
+                              borderRadius: borderRadius.sm,
+                              borderWidth: 1.5,
+                              borderColor: currentQuota === count ? colors.accent : colors.border,
+                              backgroundColor:
+                                currentQuota === count ? colors.accent : colors.surface2,
+                            },
                           ]}
+                          accessibilityRole="radio"
+                          accessibilityState={{ checked: currentQuota === count }}
+                          accessibilityLabel={`${count} posts per week`}
+                          testID={`quota-count-${platform.id}-${count}`}
                         >
-                          {count}
-                        </Text>
-                      </Pressable>
-                    ))}
+                          <Text
+                            style={[
+                              typography.bodyMd,
+                              {
+                                fontFamily: fontFamily.semibold,
+                                color:
+                                  currentQuota === count ? colors.accentText : colors.textPrimary,
+                              },
+                            ]}
+                          >
+                            {count}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+
+                    {/* Plus */}
+                    <Pressable
+                      onPress={() => {
+                        const idx = POST_COUNTS.indexOf(currentQuota);
+                        if (idx < POST_COUNTS.length - 1) setQuota(platform.id, POST_COUNTS[idx + 1]);
+                      }}
+                      style={[
+                        styles.stepperButton,
+                        {
+                          backgroundColor: colors.surface2,
+                          borderColor: colors.border,
+                          borderRadius: borderRadius.sm,
+                        },
+                      ]}
+                      accessibilityRole="button"
+                      accessibilityLabel="Increase posts per week"
+                      testID={`quota-plus-${platform.id}`}
+                    >
+                      <Text
+                        style={[
+                          styles.stepperIcon,
+                          { color: colors.textPrimary, fontFamily: fontFamily.bold },
+                        ]}
+                      >
+                        +
+                      </Text>
+                    </Pressable>
                   </View>
                 </View>
               );
@@ -188,7 +300,11 @@ export default function QuotaConfigScreen() {
           </View>
         )}
 
-        <Text style={styles.helperText}>You can always change this later in settings.</Text>
+        <Text
+          style={[typography.bodySm, { color: colors.textMuted, textAlign: 'center' }]}
+        >
+          You can always change this later in settings.
+        </Text>
 
         <Button
           label="Start My Diary"
@@ -208,85 +324,60 @@ export default function QuotaConfigScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.white,
-  },
   scroll: {
     flexGrow: 1,
     paddingHorizontal: spacing['2xl'],
     paddingTop: spacing.lg,
-    paddingBottom: spacing['3xl'],
     gap: spacing.xl,
   },
   backButton: {
     alignSelf: 'flex-start',
     paddingVertical: spacing.xs,
   },
-  backText: {
-    ...typography.bodyMd,
-    color: colors.primary[500],
-    fontWeight: '500',
-  },
-  heading: {
-    ...typography.headingXl,
-    color: colors.gray[900],
-  },
   quotaList: {
-    gap: spacing['2xl'],
+    gap: spacing.lg,
   },
-  quotaRow: {
+  quotaCard: {
+    borderWidth: 1,
+    padding: spacing.lg,
     gap: spacing.md,
   },
-  platformLabel: {
-    ...typography.headingSm,
-    color: colors.gray[900],
-  },
-  quotaValue: {
-    ...typography.bodyMd,
-    color: colors.primary[500],
-    fontWeight: '600',
-  },
-  countRow: {
+  quotaCardHeader: {
     flexDirection: 'row',
-    gap: spacing.sm,
-    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  countButton: {
-    width: 40,
-    height: 40,
-    borderRadius: borderRadius.md,
-    borderWidth: 1.5,
-    borderColor: colors.gray[200],
+  stepperRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  stepperButton: {
+    width: 44,
+    height: 44,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.white,
   },
-  countButtonActive: {
-    backgroundColor: colors.primary[500],
-    borderColor: colors.primary[500],
+  stepperIcon: {
+    fontSize: 20,
+    lineHeight: 24,
   },
-  countLabel: {
-    ...typography.bodyMd,
-    fontWeight: '600',
-    color: colors.gray[700],
+  countRow: {
+    flex: 1,
+    flexDirection: 'row',
+    gap: spacing.xs,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
   },
-  countLabelActive: {
-    color: colors.white,
-  },
-  helperText: {
-    ...typography.bodySm,
-    color: colors.gray[400],
-    textAlign: 'center',
+  countButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   emptyNote: {
     padding: spacing.lg,
-    backgroundColor: colors.gray[50],
-    borderRadius: borderRadius.md,
-  },
-  emptyNoteText: {
-    ...typography.bodyMd,
-    color: colors.gray[500],
-    textAlign: 'center',
+    borderWidth: 1,
   },
 });

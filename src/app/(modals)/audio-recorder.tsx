@@ -1,190 +1,237 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   Animated,
   Easing,
   Pressable,
-  StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Audio } from 'expo-av';
-import type { Recording } from 'expo-av/build/Audio';
-import { colors } from '@/theme/colors';
-import { typography } from '@/theme/typography';
-import { borderRadius, spacing } from '@/theme/spacing';
-import { Button } from '@/components/ui/Button';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import type { Audio as AudioType, Recording } from 'expo-av/build/Audio';
+
+let Audio: typeof AudioType | null = null;
+try {
+  // expo-av requires a dev build — gracefully handle Expo Go
+  Audio = require('expo-av').Audio;
+} catch {
+  // null in Expo Go; handled gracefully
+}
+
+import { useTheme } from '@/theme/ThemeContext';
+import { fontFamily } from '@/theme/typography';
+import { spacing } from '@/theme/spacing';
 import { useUIStore } from '@/stores/uiStore';
 import { logger } from '@/lib/logger';
+import { styles } from './audio-recorder.styles';
 
-type RecorderState = 'idle' | 'recording' | 'preview';
+type RecorderState = 'recording' | 'paused' | 'preview';
 
-function formatTimer(seconds: number): string {
-  const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
+const BAR_COUNT = 28;
+const BAR_MAX = 52;
+const BAR_MIN = 4;
+
+function formatTimer(totalSeconds: number): string {
+  const mins = Math.floor(totalSeconds / 60);
+  const secs = totalSeconds % 60;
   return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 }
 
 export default function AudioRecorderModal() {
+  const { colors } = useTheme();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
+  const SHEET_HEIGHT = windowHeight * 0.62;
   const setPendingAudioUri = useUIStore((s) => s.setPendingAudioUri);
 
-  const [recorderState, setRecorderState] = useState<RecorderState>('idle');
+  const [recorderState, setRecorderState] = useState<RecorderState>('recording');
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [audioUri, setAudioUri] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [playbackMs, setPlaybackMs] = useState(0);
+  const [durationMs, setDurationMs] = useState(0);
 
   const recordingRef = useRef<Recording | null>(null);
-  const soundRef = useRef<Audio.Sound | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const soundRef = useRef<any>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-  const pulseAnimRef = useRef<Animated.CompositeAnimation | null>(null);
+  const waveAnimRef = useRef<Animated.CompositeAnimation | null>(null);
+  const barHeights = useRef(
+    Array.from({ length: BAR_COUNT }, () => new Animated.Value(BAR_MIN)),
+  ).current;
 
-  const startPulse = useCallback(() => {
-    pulseAnimRef.current = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.2,
-          duration: 600,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 600,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ]),
+  // ─── Wave animation ────────────────────────────────────────────────────────
+
+  const startWave = useCallback(() => {
+    const anims = barHeights.map((val, i) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(val, {
+            toValue: BAR_MIN + Math.random() * (BAR_MAX - BAR_MIN),
+            duration: 220 + (i % 9) * 60,
+            easing: Easing.inOut(Easing.sin),
+            useNativeDriver: false,
+          }),
+          Animated.timing(val, {
+            toValue: BAR_MIN + Math.random() * (BAR_MAX - BAR_MIN) * 0.5,
+            duration: 180 + (i % 7) * 50,
+            easing: Easing.inOut(Easing.sin),
+            useNativeDriver: false,
+          }),
+        ]),
+      ),
     );
-    pulseAnimRef.current.start();
-  }, [pulseAnim]);
+    waveAnimRef.current = Animated.parallel(anims);
+    waveAnimRef.current.start();
+  }, [barHeights]);
 
-  const stopPulse = useCallback(() => {
-    pulseAnimRef.current?.stop();
-    pulseAnim.setValue(1);
-  }, [pulseAnim]);
+  const stopWave = useCallback(() => {
+    waveAnimRef.current?.stop();
+    barHeights.forEach((val, i) =>
+      Animated.timing(val, {
+        toValue: BAR_MIN + Math.sin(i * 0.6) * (BAR_MAX * 0.35 - BAR_MIN),
+        duration: 300,
+        useNativeDriver: false,
+      }).start(),
+    );
+  }, [barHeights]);
+
+  // ─── Timer ─────────────────────────────────────────────────────────────────
 
   const startTimer = useCallback(() => {
-    setElapsedSeconds(0);
-    timerRef.current = setInterval(() => {
-      setElapsedSeconds((prev) => prev + 1);
-    }, 1000);
+    timerRef.current = setInterval(() => setElapsedSeconds((s) => s + 1), 1000);
   }, []);
 
   const stopTimer = useCallback(() => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
   }, []);
 
+  // Cleanup timer and wave on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) { clearInterval(timerRef.current); }
+      waveAnimRef.current?.stop();
+    };
+  }, []);
+
+  // ─── Recording ─────────────────────────────────────────────────────────────
+
   const handleStartRecording = useCallback(async () => {
+    if (!Audio) return;
     try {
       const { status } = await Audio.requestPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Microphone access is needed to record audio.');
-        return;
-      }
-
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-      });
-
+      if (status !== 'granted') { router.back(); return; }
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
       const { recording } = await Audio.Recording.createAsync(
         Audio.RecordingOptionsPresets.HIGH_QUALITY,
       );
       recordingRef.current = recording;
       setRecorderState('recording');
       startTimer();
-      startPulse();
+      startWave();
     } catch (err) {
       logger.error('Failed to start recording', {
         error: err instanceof Error ? err.message : String(err),
       });
-      Alert.alert('Error', 'Could not start recording. Please try again.');
+      router.back();
     }
-  }, [startTimer, startPulse]);
+  }, [startTimer, startWave, router]);
 
-  const handleStopRecording = useCallback(async () => {
+  const handlePause = useCallback(async () => {
+    if (!recordingRef.current) return;
+    try {
+      await recordingRef.current.pauseAsync();
+      stopTimer();
+      stopWave();
+      setRecorderState('paused');
+    } catch (err) {
+      logger.error('Failed to pause', { error: err instanceof Error ? err.message : String(err) });
+    }
+  }, [stopTimer, stopWave]);
+
+  const handleResume = useCallback(async () => {
+    if (!recordingRef.current) return;
+    try {
+      await recordingRef.current.startAsync();
+      startTimer();
+      startWave();
+      setRecorderState('recording');
+    } catch (err) {
+      logger.error('Failed to resume', { error: err instanceof Error ? err.message : String(err) });
+    }
+  }, [startTimer, startWave]);
+
+  const handleStop = useCallback(async () => {
     stopTimer();
-    stopPulse();
-
+    stopWave();
     try {
       if (!recordingRef.current) return;
       await recordingRef.current.stopAndUnloadAsync();
       const uri = recordingRef.current.getURI();
       recordingRef.current = null;
-
-      if (uri) {
-        setAudioUri(uri);
-        setRecorderState('preview');
-      } else {
-        logger.warn('Recording URI is null after stopping');
-        setRecorderState('idle');
-      }
+      if (uri) { setAudioUri(uri); setRecorderState('preview'); }
+      else { router.back(); }
     } catch (err) {
       logger.error('Failed to stop recording', {
         error: err instanceof Error ? err.message : String(err),
       });
-      setRecorderState('idle');
+      router.back();
     }
-  }, [stopTimer, stopPulse]);
+  }, [stopTimer, stopWave, router]);
+
+  // ─── Playback ──────────────────────────────────────────────────────────────
 
   const handlePlayPause = useCallback(async () => {
-    if (!audioUri) return;
-
+    if (!audioUri || !Audio) return;
     try {
-      if (soundRef.current) {
-        if (isPlaying) {
-          await soundRef.current.pauseAsync();
-          setIsPlaying(false);
-        } else {
-          await soundRef.current.playAsync();
-          setIsPlaying(true);
-        }
-        return;
+      if (!soundRef.current) {
+        const { sound } = await Audio.Sound.createAsync(
+          { uri: audioUri },
+          { shouldPlay: true },
+          (status) => {
+            if (!status.isLoaded) return;
+            setPlaybackMs(status.positionMillis);
+            if (status.durationMillis) setDurationMs(status.durationMillis);
+            if (status.didJustFinish) setIsPlaying(false);
+          },
+        );
+        soundRef.current = sound;
+        setIsPlaying(true);
+      } else if (isPlaying) {
+        await soundRef.current.pauseAsync();
+        setIsPlaying(false);
+      } else {
+        await soundRef.current.playAsync();
+        setIsPlaying(true);
       }
-
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: audioUri },
-        { shouldPlay: true },
-        (status) => {
-          if (status.isLoaded && status.didJustFinish) {
-            setIsPlaying(false);
-          }
-        },
-      );
-      soundRef.current = sound;
-      setIsPlaying(true);
     } catch (err) {
-      logger.error('Failed to play recording', {
-        error: err instanceof Error ? err.message : String(err),
-      });
+      logger.error('Playback error', { error: err instanceof Error ? err.message : String(err) });
     }
   }, [audioUri, isPlaying]);
 
-  const handleDiscard = useCallback(async () => {
-    try {
-      if (soundRef.current) {
-        await soundRef.current.unloadAsync();
-        soundRef.current = null;
+  const handleSeek = useCallback(
+    async (deltaMs: number) => {
+      if (!soundRef.current) return;
+      try {
+        const target = Math.max(0, Math.min(durationMs, playbackMs + deltaMs));
+        await soundRef.current.setPositionAsync(target);
+        setPlaybackMs(target);
+      } catch (err) {
+        logger.warn('Seek error', { error: err instanceof Error ? err.message : String(err) });
       }
-    } catch (err) {
-      logger.warn('Error unloading sound on discard', {
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
-    setAudioUri(null);
-    setElapsedSeconds(0);
-    setIsPlaying(false);
-    setRecorderState('idle');
-  }, []);
+    },
+    [playbackMs, durationMs],
+  );
 
-  const handleSave = useCallback(() => {
+  const handleDiscard = useCallback(async () => {
+    try { await soundRef.current?.unloadAsync(); } catch { /* swallow */ }
+    soundRef.current = null;
+    router.back();
+  }, [router]);
+
+  const handleUseRecording = useCallback(() => {
     if (!audioUri) return;
     setPendingAudioUri(audioUri);
     router.back();
@@ -192,223 +239,192 @@ export default function AudioRecorderModal() {
 
   const handleClose = useCallback(async () => {
     stopTimer();
-    stopPulse();
-    if (recordingRef.current) {
-      try {
-        await recordingRef.current.stopAndUnloadAsync();
-      } catch {
-        // Swallow — we're closing
-      }
-      recordingRef.current = null;
-    }
-    if (soundRef.current) {
-      try {
-        await soundRef.current.unloadAsync();
-      } catch {
-        // Swallow — we're closing
-      }
-      soundRef.current = null;
-    }
+    stopWave();
+    try { await recordingRef.current?.stopAndUnloadAsync(); } catch { /* swallow */ }
+    try { await soundRef.current?.unloadAsync(); } catch { /* swallow */ }
+    recordingRef.current = null;
+    soundRef.current = null;
     router.back();
-  }, [stopTimer, stopPulse, router]);
+  }, [stopTimer, stopWave, router]);
 
-  // Cleanup on unmount
+  // Auto-start on mount
   useEffect(() => {
+    void handleStartRecording();
     return () => {
       stopTimer();
-      stopPulse();
+      waveAnimRef.current?.stop();
       recordingRef.current?.stopAndUnloadAsync().catch(() => {});
       soundRef.current?.unloadAsync().catch(() => {});
     };
-  }, [stopTimer, stopPulse]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ─── Derived values ────────────────────────────────────────────────────────
+
+  const timerDisplay = recorderState === 'preview'
+    ? formatTimer(Math.floor(playbackMs / 1000))
+    : formatTimer(elapsedSeconds);
+
+  const totalDisplay = formatTimer(
+    recorderState === 'preview' ? Math.floor(durationMs / 1000) : elapsedSeconds,
+  );
+
+  const isActiveRecording = recorderState === 'recording';
+
+  // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <SafeAreaView style={styles.safeArea} testID="audio-recorder-modal">
-      {/* Close button */}
-      <Pressable
-        style={styles.closeButton}
-        onPress={handleClose}
-        hitSlop={8}
-        accessibilityRole="button"
-        accessibilityLabel="Close recorder"
-        testID="close-recorder-button"
+    <View style={styles.container} testID="audio-recorder-modal">
+      {/* Dimmed overlay — tap to dismiss */}
+      <Pressable style={styles.overlay} onPress={() => void handleClose()} />
+
+      {/* Half-sheet */}
+      <View
+        style={[
+          styles.sheet,
+          {
+            backgroundColor: colors.surface,
+            height: SHEET_HEIGHT,
+            paddingBottom: Math.max(insets.bottom, spacing.lg),
+          },
+        ]}
       >
-        <Text style={styles.closeIcon}>✕</Text>
-      </Pressable>
+        {/* Drag handle */}
+        <View style={[styles.handle, { backgroundColor: colors.borderStrong }]} />
 
-      <View style={styles.content}>
-        <Text style={styles.heading}>Record your thoughts</Text>
-
-        {/* Waveform placeholder */}
-        <View style={styles.waveformContainer} testID="waveform-placeholder">
-          {Array.from({ length: 24 }).map((_, i) => (
-            <View
+        {/* Waveform */}
+        <View style={styles.waveformRow} testID="waveform">
+          {barHeights.map((anim, i) => (
+            <Animated.View
               key={i}
               style={[
                 styles.waveBar,
-                recorderState === 'recording' && { height: Math.random() * 40 + 10 },
+                {
+                  height: anim,
+                  backgroundColor: isActiveRecording ? colors.accent : colors.textMuted,
+                  opacity: isActiveRecording ? 1 : 0.6,
+                },
               ]}
             />
           ))}
         </View>
 
         {/* Timer */}
-        <Text style={styles.timer} testID="recorder-timer">
-          {formatTimer(elapsedSeconds)}
-        </Text>
+        <View style={styles.timerRow}>
+          <Text style={[styles.timer, { color: colors.textPrimary }]} testID="recorder-timer">
+            {timerDisplay}
+          </Text>
+          {recorderState === 'preview' && (
+            <Text style={[styles.timerTotal, { color: colors.textMuted }]}>
+              {` / ${totalDisplay}`}
+            </Text>
+          )}
+        </View>
 
-        {/* Record button */}
-        {recorderState !== 'preview' && (
-          <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+        {/* Controls: recording / paused */}
+        {recorderState !== 'preview' ? (
+          <View style={styles.recordingControls}>
             <Pressable
-              style={[
-                styles.recordButton,
-                recorderState === 'recording' && styles.recordButtonActive,
-              ]}
-              onPress={
-                recorderState === 'idle' ? handleStartRecording : handleStopRecording
-              }
+              onPress={isActiveRecording ? () => void handlePause() : () => void handleResume()}
+              style={[styles.sideControlBtn, { backgroundColor: colors.surface2, borderColor: colors.border }]}
               accessibilityRole="button"
-              accessibilityLabel={recorderState === 'idle' ? 'Start recording' : 'Stop recording'}
-              testID="record-button"
+              accessibilityLabel={isActiveRecording ? 'Pause recording' : 'Resume recording'}
+              testID="pause-resume-btn"
             >
-              <View
-                style={[
-                  styles.recordButtonInner,
-                  recorderState === 'recording' && styles.recordButtonInnerStop,
-                ]}
-              />
+              <Text style={[styles.sideControlIcon, { color: colors.textPrimary }]}>
+                {isActiveRecording ? '⏸' : '▶'}
+              </Text>
             </Pressable>
-          </Animated.View>
-        )}
 
-        {/* Preview controls */}
-        {recorderState === 'preview' && (
-          <View style={styles.previewControls} testID="preview-controls">
             <Pressable
-              style={styles.playButton}
-              onPress={handlePlayPause}
+              onPress={() => void handleStop()}
+              style={styles.stopBtn}
               accessibilityRole="button"
-              accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
-              testID="play-pause-button"
+              accessibilityLabel="Stop recording"
+              testID="stop-btn"
             >
-              <Text style={styles.playIcon}>{isPlaying ? '⏸' : '▶️'}</Text>
+              <View style={[styles.stopInner, { backgroundColor: colors.white }]} />
             </Pressable>
+
+            <Pressable
+              onPress={() => void handleClose()}
+              style={[styles.sideControlBtn, { backgroundColor: colors.surface2, borderColor: colors.border }]}
+              accessibilityRole="button"
+              accessibilityLabel="Cancel recording"
+              testID="cancel-btn"
+            >
+              <Text style={[styles.cancelText, { color: colors.textSecondary }]}>Cancel</Text>
+            </Pressable>
+          </View>
+        ) : (
+          /* Controls: preview */
+          <View style={styles.previewSection} testID="preview-controls">
+            <View style={styles.playbackRow}>
+              <Pressable
+                onPress={() => void handleSeek(-15_000)}
+                style={styles.seekBtn}
+                accessibilityRole="button"
+                accessibilityLabel="Rewind 15 seconds"
+                testID="rewind-btn"
+              >
+                <Text style={[styles.seekIcon, { color: colors.textSecondary }]}>{'⏪'}</Text>
+                <Text style={[styles.seekLabel, { color: colors.textMuted }]}>15s</Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => void handlePlayPause()}
+                style={[styles.playBtn, { backgroundColor: colors.accent }]}
+                accessibilityRole="button"
+                accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
+                testID="play-pause-btn"
+              >
+                <Text style={[styles.playBtnIcon, { color: colors.accentText }]}>
+                  {isPlaying ? '⏸' : '▶'}
+                </Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => void handleSeek(15_000)}
+                style={styles.seekBtn}
+                accessibilityRole="button"
+                accessibilityLabel="Forward 15 seconds"
+                testID="forward-btn"
+              >
+                <Text style={[styles.seekIcon, { color: colors.textSecondary }]}>{'⏩'}</Text>
+                <Text style={[styles.seekLabel, { color: colors.textMuted }]}>15s</Text>
+              </Pressable>
+            </View>
 
             <View style={styles.previewActions}>
-              <Button
-                label="Discard"
-                variant="outline"
-                size="md"
-                onPress={handleDiscard}
-                testID="discard-button"
-              />
-              <Button
-                label="Save"
-                variant="primary"
-                size="md"
-                onPress={handleSave}
-                testID="save-recording-button"
-              />
+              <Pressable
+                onPress={() => void handleDiscard()}
+                style={({ pressed }) => [
+                  styles.actionBtn,
+                  { borderColor: colors.border, backgroundColor: colors.surface2, opacity: pressed ? 0.7 : 1 },
+                ]}
+                accessibilityRole="button"
+                testID="discard-btn"
+              >
+                <Text style={[styles.actionBtnText, { color: colors.textSecondary }]}>Discard</Text>
+              </Pressable>
+
+              <Pressable
+                onPress={handleUseRecording}
+                style={({ pressed }) => [
+                  styles.actionBtn,
+                  { backgroundColor: colors.accent, opacity: pressed ? 0.85 : 1 },
+                ]}
+                accessibilityRole="button"
+                testID="use-recording-btn"
+              >
+                <Text style={[styles.actionBtnText, { color: colors.accentText, fontFamily: fontFamily.semiBold }]}>
+                  Use Recording
+                </Text>
+              </Pressable>
             </View>
           </View>
         )}
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.white,
-  },
-  closeButton: {
-    position: 'absolute',
-    top: spacing['3xl'],
-    left: spacing.lg,
-    zIndex: 10,
-    padding: spacing.sm,
-  },
-  closeIcon: {
-    fontSize: 20,
-    color: colors.gray[700],
-  },
-  content: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.xl,
-    gap: spacing['2xl'],
-  },
-  heading: {
-    ...typography.headingLg,
-    color: colors.gray[900],
-    textAlign: 'center',
-  },
-  waveformContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    height: 60,
-    width: '100%',
-    justifyContent: 'center',
-  },
-  waveBar: {
-    width: 4,
-    height: 20,
-    backgroundColor: colors.gray[200],
-    borderRadius: borderRadius.full,
-  },
-  timer: {
-    ...typography.headingXl,
-    color: colors.gray[900],
-    fontVariant: ['tabular-nums'],
-    letterSpacing: 2,
-  },
-  recordButton: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: colors.error,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: colors.error,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  recordButtonActive: {
-    backgroundColor: colors.error,
-  },
-  recordButtonInner: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.white,
-  },
-  recordButtonInnerStop: {
-    borderRadius: 4,
-  },
-  previewControls: {
-    alignItems: 'center',
-    gap: spacing.xl,
-    width: '100%',
-  },
-  playButton: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: colors.primary[500],
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  playIcon: {
-    fontSize: 28,
-  },
-  previewActions: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-});

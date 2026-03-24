@@ -1,28 +1,69 @@
 import { router } from 'expo-router';
 import React from 'react';
-import { SafeAreaView, StyleSheet, Text, View } from 'react-native';
-import { Button, StepDots } from '@/components/ui';
-import { colors } from '@/theme/colors';
+import { SafeAreaView, StyleSheet, Text, View, Pressable } from 'react-native';
+import { Button } from '@/components/ui';
+import { useTheme } from '@/theme/ThemeContext';
 import { borderRadius, spacing } from '@/theme/spacing';
-import { typography } from '@/theme/typography';
+import { fontFamily, typography } from '@/theme/typography';
+
+const FEATURES = [
+  { icon: '✦', label: 'Write your story' },
+  { icon: '◈', label: 'AI crafts your posts' },
+  { icon: '◉', label: 'Approve and post' },
+];
 
 export default function WelcomeScreen() {
+  const { colors } = useTheme();
+
   return (
-    <SafeAreaView style={styles.container} testID="welcome-screen">
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: colors.background }}
+      testID="welcome-screen"
+    >
       <View style={styles.inner}>
-        {/* Illustration placeholder */}
-        <View style={styles.illustrationArea} testID="illustration-area">
-          <Text style={styles.illustrationEmoji}>📓</Text>
+        {/* Flame icon area */}
+        <View
+          style={[
+            styles.iconArea,
+            { backgroundColor: colors.warmSurface, borderRadius: borderRadius.xl },
+          ]}
+          testID="illustration-area"
+        >
+          <Text style={styles.flameIcon}>🔥</Text>
         </View>
 
         {/* Copy */}
         <View style={styles.copyArea}>
-          <Text style={styles.heading}>
-            Turn your daily founder journey into viral content
+          <Text
+            style={[
+              styles.wordmark,
+              { color: colors.textPrimary, fontFamily: fontFamily.serif },
+            ]}
+          >
+            {'FOUNDER\nDIARIES'}
           </Text>
-          <Text style={styles.body}>
-            Record your day. We'll craft posts that match what works on each platform.
+          <Text
+            style={[typography.headingMd, { color: colors.textSecondary, textAlign: 'center' }]}
+          >
+            {'Your daily grind, turned into content that performs.'}
           </Text>
+        </View>
+
+        {/* Feature list */}
+        <View style={styles.featureList}>
+          {FEATURES.map(({ icon, label }) => (
+            <View key={label} style={styles.featureRow}>
+              <View
+                style={[
+                  styles.featureIconWrap,
+                  { backgroundColor: colors.accentLight },
+                ]}
+              >
+                <Text style={[styles.featureIcon, { color: colors.accent }]}>{icon}</Text>
+              </View>
+              <Text style={[typography.bodyMd, { color: colors.textPrimary }]}>{label}</Text>
+            </View>
+          ))}
         </View>
 
         {/* CTA */}
@@ -35,47 +76,76 @@ export default function WelcomeScreen() {
           testID="get-started-button"
         />
 
-        {/* Step dots */}
-        <StepDots total={4} current={0} testID="welcome-step-dots" />
+        {/* Sign in link */}
+        <View style={styles.signinRow}>
+          <Text style={[typography.bodyMd, { color: colors.textSecondary }]}>
+            {'Already have an account?'}
+          </Text>
+          <Pressable onPress={() => router.push('/(auth)/sign-in')} testID="sign-in-link">
+            <Text
+              style={[
+                typography.bodyMd,
+                { color: colors.accent, fontFamily: fontFamily.semibold },
+              ]}
+            >
+              {' Sign In'}
+            </Text>
+          </Pressable>
+        </View>
       </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.white,
-  },
   inner: {
     flex: 1,
     paddingHorizontal: spacing['2xl'],
     paddingBottom: spacing['3xl'],
     paddingTop: spacing['2xl'],
-    gap: spacing['2xl'],
+    gap: spacing.xl,
     justifyContent: 'center',
   },
-  illustrationArea: {
-    backgroundColor: colors.primary[50],
-    borderRadius: borderRadius.xl,
-    height: 240,
+  iconArea: {
+    height: 160,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  illustrationEmoji: {
-    fontSize: 80,
+  flameIcon: {
+    fontSize: 64,
   },
   copyArea: {
+    gap: spacing.sm,
+    alignItems: 'center',
+  },
+  wordmark: {
+    fontSize: 28,
+    lineHeight: 32,
+    letterSpacing: 3,
+    textAlign: 'center',
+  },
+  featureList: {
     gap: spacing.md,
   },
-  heading: {
-    ...typography.headingXl,
-    color: colors.gray[900],
-    textAlign: 'center',
+  featureRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
   },
-  body: {
-    ...typography.bodyLg,
-    color: colors.gray[500],
-    textAlign: 'center',
+  featureIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  featureIcon: {
+    fontSize: 16,
+    lineHeight: 20,
+  },
+  signinRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

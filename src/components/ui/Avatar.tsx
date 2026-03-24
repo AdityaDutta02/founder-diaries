@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
-import { colors } from '@/theme/colors';
+import { Image, Text, View } from 'react-native';
+import { useTheme } from '@/theme/ThemeContext';
 import { typography } from '@/theme/typography';
 import { borderRadius } from '@/theme/spacing';
 
@@ -45,24 +45,25 @@ export const Avatar = memo(function Avatar({
   size = 'md',
   testID,
 }: AvatarProps) {
+  const { colors } = useTheme();
   const dimension = SIZE_VALUES[size];
   const fontSize = FONT_SIZES[size];
   const initials = getInitials(fallback);
 
-  const containerStyle = [
-    styles.base,
-    {
-      width: dimension,
-      height: dimension,
-      borderRadius: dimension / 2,
-    },
-  ];
+  const containerStyle = {
+    width: dimension,
+    height: dimension,
+    borderRadius: dimension / 2,
+    overflow: 'hidden' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  };
 
   if (source) {
     return (
       <Image
         source={{ uri: source }}
-        style={[containerStyle, styles.image]}
+        style={[containerStyle, { resizeMode: 'cover' }]}
         testID={testID ?? 'avatar-image'}
         accessibilityLabel={`${fallback} avatar`}
         accessibilityRole="image"
@@ -72,7 +73,15 @@ export const Avatar = memo(function Avatar({
 
   return (
     <View
-      style={[containerStyle, styles.fallbackContainer]}
+      style={[
+        containerStyle,
+        {
+          backgroundColor: colors.surface2,
+          borderRadius: borderRadius.full,
+          borderWidth: 1,
+          borderColor: colors.border,
+        },
+      ]}
       testID={testID ?? 'avatar-fallback'}
       accessibilityLabel={`${fallback} avatar`}
       accessibilityRole="image"
@@ -80,8 +89,7 @@ export const Avatar = memo(function Avatar({
       <Text
         style={[
           typography.label,
-          styles.initials,
-          { fontSize, lineHeight: fontSize + 2 },
+          { fontSize, lineHeight: fontSize + 2, color: colors.textSecondary, fontWeight: '600' },
         ]}
         numberOfLines={1}
       >
@@ -89,23 +97,4 @@ export const Avatar = memo(function Avatar({
       </Text>
     </View>
   );
-});
-
-const styles = StyleSheet.create({
-  base: {
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  image: {
-    resizeMode: 'cover',
-  },
-  fallbackContainer: {
-    backgroundColor: colors.primary[100],
-    borderRadius: borderRadius.full,
-  },
-  initials: {
-    color: colors.primary[700],
-    fontWeight: '600',
-  },
 });

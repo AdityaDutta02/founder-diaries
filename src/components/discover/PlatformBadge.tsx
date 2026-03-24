@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeContext';
 import { borderRadius, spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
 import type { Platform } from '@/types/database';
@@ -22,12 +22,19 @@ export const PlatformBadge = memo(function PlatformBadge({
   size = 'sm',
   testID,
 }: PlatformBadgeProps) {
+  const { colors } = useTheme();
+  const platformColor = colors.platform[platform];
+
   return (
     <View
-      style={[styles.badge, styles[`badge_${size}`], { backgroundColor: colors.platform[platform] }]}
+      style={[
+        styles.badge,
+        styles[`badge_${size}`],
+        { backgroundColor: platformColor },
+      ]}
       testID={testID ?? `platform-badge-${platform}`}
     >
-      <Text style={[styles.label, styles[`label_${size}`]]}>{PLATFORM_LABELS[platform]}</Text>
+      <Text style={[styles.label, styles[`label_${size}`], { color: colors.accentText }]}>{PLATFORM_LABELS[platform]}</Text>
     </View>
   );
 });
@@ -49,7 +56,6 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.sm,
   },
   label: {
-    color: colors.white,
     fontWeight: '700',
   },
   label_sm: {

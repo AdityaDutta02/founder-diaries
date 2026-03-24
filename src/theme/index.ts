@@ -1,8 +1,8 @@
-export { colors, darkColors } from './colors';
-export type { Colors, DarkColors } from './colors';
+export { colors, lightColors, darkColors } from './colors';
+export type { Colors, DarkColors, ThemeColors } from './colors';
 
-export { typography } from './typography';
+export { typography, fontFamily } from './typography';
 export type { TypographyKey } from './typography';
 
-export { spacing, borderRadius, shadows } from './spacing';
+export { spacing, borderRadius, shadows, makeShadows } from './spacing';
 export type { SpacingKey, BorderRadiusKey, ShadowKey } from './spacing';

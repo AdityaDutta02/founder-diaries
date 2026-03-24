@@ -1,5 +1,5 @@
 import React, { memo, useEffect } from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -8,78 +8,94 @@ import Animated, {
   Easing,
   cancelAnimation,
 } from 'react-native-reanimated';
-import { colors } from '@/theme/colors';
-import { borderRadius } from '@/theme/spacing';
+import { useTheme } from '@/theme/ThemeContext';
+import { typography } from '@/theme/typography';
+import { spacing, borderRadius } from '@/theme/spacing';
 
 interface AudioRecordButtonProps {
   isRecording: boolean;
   onPress: () => void;
+  recordingDuration?: number;
   testID?: string;
+}
+
+function formatDuration(seconds: number): string {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 }
 
 export const AudioRecordButton = memo(function AudioRecordButton({
   isRecording,
   onPress,
+  recordingDuration = 0,
   testID,
 }: AudioRecordButtonProps) {
+  const { colors } = useTheme();
   const opacity = useSharedValue(1);
+  const scale = useSharedValue(1);
 
   useEffect(() => {
     if (isRecording) {
       opacity.value = withRepeat(
-        withTiming(0.4, { duration: 700, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0.5, { duration: 700, easing: Easing.inOut(Easing.ease) }),
+        -1,
+        true,
+      );
+      scale.value = withRepeat(
+        withTiming(1.08, { duration: 700, easing: Easing.inOut(Easing.ease) }),
         -1,
         true,
       );
     } else {
       cancelAnimation(opacity);
+      cancelAnimation(scale);
       opacity.value = withTiming(1, { duration: 200 });
+      scale.value = withTiming(1, { duration: 200 });
     }
-  }, [isRecording, opacity]);
+  }, [isRecording, opacity, scale]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
+    transform: [{ scale: scale.value }],
   }));
 
   return (
-    <Animated.View style={animatedStyle}>
-      <Pressable
-        onPress={onPress}
-        style={[styles.button, isRecording ? styles.buttonRecording : styles.buttonDefault]}
-        accessibilityRole="button"
-        accessibilityLabel={isRecording ? 'Stop recording' : 'Start recording'}
-        accessibilityState={{ selected: isRecording }}
-        testID={testID ?? 'audio-record-button'}
-      >
-        <Text style={[styles.icon, isRecording ? styles.iconRecording : styles.iconDefault]}>
-          {'🎤'}
-        </Text>
-      </Pressable>
-    </Animated.View>
-  );
-});
+    <View style={{ alignItems: 'center', gap: spacing.sm }}>
+      <Animated.View style={animatedStyle}>
+        <Pressable
+          onPress={onPress}
+          style={{
+            width: 72,
+            height: 72,
+            borderRadius: borderRadius.full,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: isRecording ? colors.error : colors.surface2,
+            borderWidth: isRecording ? 0 : 1.5,
+            borderColor: isRecording ? 'transparent' : colors.border,
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={isRecording ? 'Stop recording' : 'Start recording'}
+          accessibilityState={{ selected: isRecording }}
+          testID={testID ?? 'audio-record-button'}
+        >
+          <Text style={{ fontSize: 28 }}>{'🎤'}</Text>
+        </Pressable>
+      </Animated.View>
 
-const styles = StyleSheet.create({
-  button: {
-    width: 56,
-    height: 56,
-    borderRadius: borderRadius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonDefault: {
-    backgroundColor: colors.gray[100],
-  },
-  buttonRecording: {
-    backgroundColor: colors.error,
-  },
-  icon: {
-    fontSize: 24,
-  },
-  iconDefault: {
-    // No tint modification needed for emoji
-  },
-  iconRecording: {
-    // No tint modification needed for emoji
-  },
+      {/* Timer */}
+      {isRecording ? (
+        <Text
+          style={{
+            ...typography.numericMd,
+            color: colors.textPrimary,
+          }}
+          testID="recording-timer"
+        >
+          {formatDuration(recordingDuration)}
+        </Text>
+      ) : null}
+    </View>
+  );
 });

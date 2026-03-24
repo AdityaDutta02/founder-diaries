@@ -14,6 +14,7 @@ export interface Profile {
   timezone: string;
   created_at: string;
   updated_at: string;
+  expo_push_token: string | null;
 }
 
 interface AuthState {

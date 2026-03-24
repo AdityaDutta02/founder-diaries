@@ -12,9 +12,9 @@ import {
 import { Button, EyeToggle, Input, useToast } from '@/components/ui';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeContext';
 import { borderRadius, spacing } from '@/theme/spacing';
-import { typography } from '@/theme/typography';
+import { fontFamily, typography } from '@/theme/typography';
 
 function validate(email: string, password: string): string | null {
   if (!email.trim()) return 'Email is required';
@@ -25,6 +25,7 @@ function validate(email: string, password: string): string | null {
 }
 
 export default function SignInScreen() {
+  const { colors } = useTheme();
   const toast = useToast();
   const { setSession, setProfile } = useAuthStore();
 
@@ -66,16 +67,16 @@ export default function SignInScreen() {
         if (data.user) {
           const { data: profileData } = await supabase
             .from('profiles')
-            .select('*')
+            .select('id, email, full_name, avatar_url, industry, niche_keywords, onboarding_completed, discovery_unlocked, timezone, created_at, updated_at, diary_start_date, expo_push_token')
             .eq('id', data.user.id)
             .single();
           if (profileData) {
             setProfile(profileData);
           }
         }
-        router.replace('/(tabs)');
+        router.replace('/(tabs)/diary');
       }
-    } catch (err) {
+    } catch {
       toast.show('An unexpected error occurred. Please try again.', 'error');
     } finally {
       setIsLoading(false);
@@ -84,7 +85,7 @@ export default function SignInScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.flex}
+      style={{ flex: 1, backgroundColor: colors.background }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       testID="sign-in-screen"
     >
@@ -93,18 +94,50 @@ export default function SignInScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Logo area */}
-        <View style={styles.logoArea} testID="logo-area">
-          <Text style={styles.logoEmoji}>📔</Text>
-          <Text style={styles.heading}>Founder Diaries</Text>
-          <Text style={styles.subtitle}>Turn your journey into content</Text>
+        {/* Brand */}
+        <View style={styles.brandArea} testID="logo-area">
+          <Text style={[styles.wordmark, { color: colors.textPrimary, fontFamily: fontFamily.serif }]}>
+            {'FOUNDER\nDIARIES'}
+          </Text>
+          <Text style={[typography.bodyMd, { color: colors.textSecondary }]}>
+            Your forge. Your story.
+          </Text>
+        </View>
+
+        {/* Social auth buttons */}
+        <View style={styles.socialRow}>
+          <Pressable
+            style={[styles.socialBtn, { backgroundColor: colors.textPrimary }]}
+            testID="apple-sign-in"
+          >
+            <Text style={[styles.socialIcon, { color: colors.background }]}>{'⌘'}</Text>
+            <Text style={[styles.socialLabel, { color: colors.background, fontFamily: fontFamily.semibold }]}>
+              Continue with Apple
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[styles.socialBtn, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border }]}
+            testID="google-sign-in"
+          >
+            <Text style={[styles.socialIcon, { color: colors.textPrimary }]}>{'G'}</Text>
+            <Text style={[styles.socialLabel, { color: colors.textPrimary, fontFamily: fontFamily.semibold }]}>
+              Continue with Google
+            </Text>
+          </Pressable>
+        </View>
+
+        {/* Divider */}
+        <View style={styles.dividerRow} testID="divider">
+          <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+          <Text style={[typography.bodySm, { color: colors.textMuted }]}>or</Text>
+          <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
         </View>
 
         {/* Form */}
         <View style={styles.form}>
           <Input
             label="Email"
-            placeholder="you@example.com"
+            placeholder="founder@startup.com"
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
@@ -115,20 +148,34 @@ export default function SignInScreen() {
             testID="email-input"
           />
 
-          <Input
-            label="Password"
-            placeholder="Enter your password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry={!showPassword}
-            autoComplete="current-password"
-            textContentType="password"
-            error={passwordError}
-            testID="password-input"
-            rightIcon={
-              <EyeToggle visible={showPassword} onToggle={() => setShowPassword((v) => !v)} />
-            }
-          />
+          <View>
+            <View style={styles.passwordHeader}>
+              <Text style={[styles.fieldLabel, { color: colors.textSecondary, fontFamily: fontFamily.bold }]}>
+                Password
+              </Text>
+              <Pressable
+                onPress={() => router.push('/(auth)/forgot-password')}
+                testID="forgot-password-link"
+              >
+                <Text style={[typography.bodySm, { color: colors.accent, fontFamily: fontFamily.semibold }]}>
+                  Forgot?
+                </Text>
+              </Pressable>
+            </View>
+            <Input
+              placeholder="••••••••"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+              autoComplete="current-password"
+              textContentType="password"
+              error={passwordError}
+              testID="password-input"
+              rightIcon={
+                <EyeToggle visible={showPassword} onToggle={() => setShowPassword((v) => !v)} />
+              }
+            />
+          </View>
 
           <Button
             label="Sign In"
@@ -139,74 +186,64 @@ export default function SignInScreen() {
             onPress={handleSignIn}
             testID="sign-in-button"
           />
-
-          <Pressable
-            onPress={() => router.push('/(auth)/forgot-password')}
-            style={styles.forgotLink}
-            testID="forgot-password-link"
-          >
-            <Text style={styles.linkText}>Forgot password?</Text>
-          </Pressable>
         </View>
 
-        {/* Divider */}
-        <View style={styles.dividerRow} testID="divider">
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>or</Text>
-          <View style={styles.dividerLine} />
-        </View>
-
-        {/* Sign-up link */}
+        {/* Footer */}
         <View style={styles.footer} testID="sign-up-footer">
-          <Text style={styles.footerText}>Don't have an account?</Text>
+          <Text style={[typography.bodyMd, { color: colors.textSecondary }]}>
+            {"Don't have an account?"}
+          </Text>
           <Pressable onPress={() => router.push('/(auth)/sign-up')} testID="create-account-link">
-            <Text style={styles.footerLink}> Create Account</Text>
+            <Text style={[typography.bodyMd, { color: colors.accent, fontFamily: fontFamily.semibold }]}>
+              {' Sign Up'}
+            </Text>
           </Pressable>
         </View>
+
+        <Text style={[typography.caption, { color: colors.textMuted, textAlign: 'center' }]}>
+          By continuing, you agree to our Terms and Privacy Policy
+        </Text>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: {
-    flex: 1,
-    backgroundColor: colors.white,
-  },
   scroll: {
     flexGrow: 1,
     justifyContent: 'center',
     paddingHorizontal: spacing['2xl'],
-    paddingVertical: spacing['4xl'],
-    gap: spacing['2xl'],
+    paddingTop: spacing['6xl'],
+    paddingBottom: spacing['3xl'],
+    gap: spacing.xl,
   },
-  logoArea: {
-    alignItems: 'center',
+  brandArea: {
+    gap: spacing.xs,
+    marginBottom: spacing.md,
+  },
+  wordmark: {
+    fontSize: 28,
+    lineHeight: 32,
+    letterSpacing: 3,
+  },
+  socialRow: {
     gap: spacing.sm,
   },
-  logoEmoji: {
-    fontSize: 56,
+  socialBtn: {
+    height: 50,
+    borderRadius: borderRadius.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
   },
-  heading: {
-    ...typography.headingXl,
-    color: colors.gray[900],
-    textAlign: 'center',
+  socialIcon: {
+    fontSize: 18,
+    lineHeight: 22,
   },
-  subtitle: {
-    ...typography.bodyLg,
-    color: colors.gray[500],
-    textAlign: 'center',
-  },
-  form: {
-    gap: spacing.lg,
-  },
-  forgotLink: {
-    alignSelf: 'flex-end',
-  },
-  linkText: {
-    ...typography.bodyMd,
-    color: colors.primary[500],
-    fontWeight: '500',
+  socialLabel: {
+    fontSize: 14,
+    lineHeight: 20,
   },
   dividerRow: {
     flexDirection: 'row',
@@ -215,25 +252,25 @@ const styles = StyleSheet.create({
   },
   dividerLine: {
     flex: 1,
-    height: 1,
-    backgroundColor: colors.gray[200],
+    height: StyleSheet.hairlineWidth,
   },
-  dividerText: {
-    ...typography.bodySm,
-    color: colors.gray[400],
+  form: {
+    gap: spacing.lg,
+  },
+  passwordHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  fieldLabel: {
+    fontSize: 11,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  footerText: {
-    ...typography.bodyMd,
-    color: colors.gray[500],
-  },
-  footerLink: {
-    ...typography.bodyMd,
-    color: colors.primary[500],
-    fontWeight: '600',
   },
 });

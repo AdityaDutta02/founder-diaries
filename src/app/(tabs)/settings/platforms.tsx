@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors } from '@/theme/colors';
-import { typography } from '@/theme/typography';
-import { borderRadius, shadows, spacing } from '@/theme/spacing';
+import { useTheme } from '@/theme/ThemeContext';
+import { typography, fontFamily } from '@/theme/typography';
+import { borderRadius, spacing } from '@/theme/spacing';
 import { HeaderBar } from '@/components/layout/HeaderBar';
 import { useAuthStore } from '@/stores/authStore';
 import { supabase } from '@/lib/supabase';
@@ -44,6 +44,7 @@ const DEFAULT_PLATFORMS: PlatformState[] = [
 ];
 
 export default function PlatformsScreen() {
+  const { colors } = useTheme();
   const session = useAuthStore((s) => s.session);
   const [platforms, setPlatforms] = useState<PlatformState[]>(DEFAULT_PLATFORMS);
   const [isLoading, setIsLoading] = useState(true);
@@ -56,7 +57,7 @@ export default function PlatformsScreen() {
     try {
       const { data, error } = await supabase
         .from('platform_configs')
-        .select('*')
+        .select('id, platform, active, weekly_post_quota, preferred_content_types, user_id, created_at, updated_at')
         .eq('user_id', session.user.id);
 
       if (error) {
@@ -67,7 +68,7 @@ export default function PlatformsScreen() {
       setPlatforms((prev) =>
         prev.map((p) => {
           const config = (data ?? []).find(
-            (c: PlatformConfig) => c.platform === p.platform,
+            (c) => (c as { platform: string }).platform === p.platform,
           ) as PlatformConfig | undefined;
           if (!config) return p;
           return {
@@ -192,19 +193,25 @@ export default function PlatformsScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
         <HeaderBar title="Platforms & Quotas" showBack />
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color={colors.primary[500]} />
+          <ActivityIndicator size="large" color={colors.accent} />
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} testID="platforms-screen">
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: colors.background }}
+      testID="platforms-screen"
+    >
       <HeaderBar title="Platforms & Quotas" showBack />
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 24 }]}
+        showsVerticalScrollIndicator={false}
+      >
         {platforms.map((p) => {
           const display = PLATFORM_DISPLAY[p.platform];
           const availableTypes = CONTENT_TYPES_BY_PLATFORM[p.platform];
@@ -213,20 +220,33 @@ export default function PlatformsScreen() {
           return (
             <View
               key={p.platform}
-              style={[styles.platformCard, !p.active && styles.platformCardInactive]}
+              style={[
+                styles.platformCard,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: p.active ? colors.accent : colors.border,
+                  borderRadius: borderRadius.lg,
+                  opacity: p.active ? 1 : 0.7,
+                },
+              ]}
               testID={`platform-card-${p.platform}`}
             >
               {/* Header row */}
               <View style={styles.platformHeader}>
                 <View style={styles.platformLeft}>
                   <Text style={styles.platformIcon}>{display.icon}</Text>
-                  <Text style={[styles.platformLabel, !p.active && styles.platformLabelInactive]}>
+                  <Text
+                    style={[
+                      typography.headingSm,
+                      { color: p.active ? colors.textPrimary : colors.textMuted },
+                    ]}
+                  >
                     {display.label}
                   </Text>
                   {isSaving && (
                     <ActivityIndicator
                       size="small"
-                      color={colors.primary[500]}
+                      color={colors.accent}
                       testID={`saving-indicator-${p.platform}`}
                     />
                   )}
@@ -234,7 +254,7 @@ export default function PlatformsScreen() {
                 <Switch
                   value={p.active}
                   onValueChange={(val) => handleToggle(p.platform, val)}
-                  trackColor={{ false: colors.gray[200], true: colors.primary[500] }}
+                  trackColor={{ false: colors.border, true: colors.accent }}
                   thumbColor={colors.white}
                   testID={`platform-toggle-${p.platform}`}
                 />
@@ -242,12 +262,24 @@ export default function PlatformsScreen() {
 
               {/* Expanded settings when active */}
               {p.active && (
-                <View style={styles.platformSettings}>
+                <View
+                  style={[
+                    styles.platformSettings,
+                    { borderTopColor: colors.border },
+                  ]}
+                >
                   {/* Weekly quota */}
                   <View style={styles.quotaSection}>
-                    <Text style={styles.settingLabel}>
+                    <Text style={[typography.bodyMd, { color: colors.textSecondary }]}>
                       Weekly quota:{' '}
-                      <Text style={styles.settingValue}>{p.weekly_post_quota}/week</Text>
+                      <Text
+                        style={{
+                          fontFamily: fontFamily.semibold,
+                          color: colors.accent,
+                        }}
+                      >
+                        {p.weekly_post_quota}/week
+                      </Text>
                     </Text>
                     <View style={styles.quotaNumbers} testID={`quota-picker-${p.platform}`}>
                       {[1, 2, 3, 4, 5, 6, 7].map((num) => (
@@ -255,7 +287,15 @@ export default function PlatformsScreen() {
                           key={num}
                           style={[
                             styles.quotaNumber,
-                            p.weekly_post_quota === num && styles.quotaNumberSelected,
+                            {
+                              borderRadius: borderRadius.md,
+                              borderColor:
+                                p.weekly_post_quota === num ? colors.accent : colors.border,
+                              backgroundColor:
+                                p.weekly_post_quota === num
+                                  ? colors.accentLight
+                                  : colors.surface2,
+                            },
                           ]}
                           onPress={() => handleQuotaChange(p.platform, num)}
                           accessibilityRole="button"
@@ -264,8 +304,14 @@ export default function PlatformsScreen() {
                         >
                           <Text
                             style={[
-                              styles.quotaNumberText,
-                              p.weekly_post_quota === num && styles.quotaNumberTextSelected,
+                              typography.bodySm,
+                              {
+                                fontFamily: fontFamily.semibold,
+                                color:
+                                  p.weekly_post_quota === num
+                                    ? colors.accent
+                                    : colors.textSecondary,
+                              },
                             ]}
                           >
                             {num}
@@ -277,7 +323,9 @@ export default function PlatformsScreen() {
 
                   {/* Content types */}
                   <View style={styles.contentTypesSection}>
-                    <Text style={styles.settingLabel}>Content types:</Text>
+                    <Text style={[typography.bodyMd, { color: colors.textSecondary }]}>
+                      Content types:
+                    </Text>
                     <View style={styles.contentTypesGrid}>
                       {availableTypes.map((type) => {
                         const isChecked = p.preferred_content_types.includes(type);
@@ -286,7 +334,13 @@ export default function PlatformsScreen() {
                             key={type}
                             style={[
                               styles.contentTypeChip,
-                              isChecked && styles.contentTypeChipSelected,
+                              {
+                                borderColor: isChecked ? colors.accent : colors.border,
+                                backgroundColor: isChecked
+                                  ? colors.accentLight
+                                  : 'transparent',
+                                borderRadius: borderRadius.full,
+                              },
                             ]}
                             onPress={() =>
                               handleContentTypeToggle(p.platform, type, !isChecked)
@@ -297,8 +351,13 @@ export default function PlatformsScreen() {
                           >
                             <Text
                               style={[
-                                styles.contentTypeText,
-                                isChecked && styles.contentTypeTextSelected,
+                                typography.bodySm,
+                                {
+                                  fontFamily: isChecked
+                                    ? fontFamily.semibold
+                                    : fontFamily.regular,
+                                  color: isChecked ? colors.accent : colors.textSecondary,
+                                },
                               ]}
                             >
                               {isChecked ? '✓ ' : ''}{CONTENT_TYPE_LABELS[type]}
@@ -319,10 +378,6 @@ export default function PlatformsScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.gray[50],
-  },
   centered: {
     flex: 1,
     alignItems: 'center',
@@ -331,17 +386,11 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: spacing.lg,
     gap: spacing.md,
-    paddingBottom: spacing['3xl'],
   },
   platformCard: {
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.lg,
+    borderWidth: 1.5,
     padding: spacing.lg,
     gap: spacing.md,
-    ...shadows.sm,
-  },
-  platformCardInactive: {
-    opacity: 0.7,
   },
   platformHeader: {
     flexDirection: 'row',
@@ -356,29 +405,13 @@ const styles = StyleSheet.create({
   platformIcon: {
     fontSize: 24,
   },
-  platformLabel: {
-    ...typography.headingSm,
-    color: colors.gray[900],
-  },
-  platformLabelInactive: {
-    color: colors.gray[400],
-  },
   platformSettings: {
     gap: spacing.md,
     paddingTop: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.gray[100],
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
   quotaSection: {
     gap: spacing.sm,
-  },
-  settingLabel: {
-    ...typography.bodyMd,
-    color: colors.gray[700],
-  },
-  settingValue: {
-    fontWeight: '600',
-    color: colors.primary[500],
   },
   quotaNumbers: {
     flexDirection: 'row',
@@ -387,24 +420,9 @@ const styles = StyleSheet.create({
   quotaNumber: {
     width: 36,
     height: 36,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.gray[100],
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
-    borderColor: 'transparent',
-  },
-  quotaNumberSelected: {
-    backgroundColor: colors.primary[100],
-    borderColor: colors.primary[500],
-  },
-  quotaNumberText: {
-    ...typography.bodySm,
-    color: colors.gray[700],
-    fontWeight: '600',
-  },
-  quotaNumberTextSelected: {
-    color: colors.primary[600],
   },
   contentTypesSection: {
     gap: spacing.sm,
@@ -417,22 +435,6 @@ const styles = StyleSheet.create({
   contentTypeChip: {
     paddingVertical: spacing.xs,
     paddingHorizontal: spacing.sm,
-    borderRadius: borderRadius.full,
     borderWidth: 1.5,
-    borderColor: colors.gray[200],
-    backgroundColor: 'transparent',
-  },
-  contentTypeChipSelected: {
-    backgroundColor: colors.primary[100],
-    borderColor: colors.primary[500],
-  },
-  contentTypeText: {
-    ...typography.bodySm,
-    color: colors.gray[500],
-    fontWeight: '500',
-  },
-  contentTypeTextSelected: {
-    color: colors.primary[600],
-    fontWeight: '600',
   },
 });

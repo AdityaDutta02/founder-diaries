@@ -1,5 +1,5 @@
 import React, { memo, useEffect } from 'react';
-import { StyleSheet, Text } from 'react-native';
+import { Text } from 'react-native';
 import Animated, {
   runOnJS,
   useAnimatedStyle,
@@ -9,20 +9,13 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors } from '@/theme/colors';
-import { typography } from '@/theme/typography';
-import { borderRadius, shadows, spacing } from '@/theme/spacing';
+import { useTheme } from '@/theme/ThemeContext';
+import { typography, fontFamily } from '@/theme/typography';
+import { borderRadius, spacing } from '@/theme/spacing';
 import { useUIStore, type ToastVariant } from '@/stores/uiStore';
 
 const SLIDE_DISTANCE = -80;
 const ANIMATION_DURATION = 250;
-
-const TOAST_BG: Record<ToastVariant, string> = {
-  success: colors.success,
-  error: colors.error,
-  info: colors.info,
-  warning: colors.warning,
-};
 
 interface ToastInnerProps {
   message: string;
@@ -37,11 +30,24 @@ const ToastInner = memo(function ToastInner({
   duration,
   onDismiss,
 }: ToastInnerProps) {
+  const { colors, shadows } = useTheme();
   const translateY = useSharedValue(SLIDE_DISTANCE);
   const opacity = useSharedValue(0);
 
+  const accentColor: string = (() => {
+    switch (variant) {
+      case 'success':
+        return colors.success;
+      case 'error':
+        return colors.error;
+      case 'warning':
+        return colors.warning;
+      case 'info':
+        return colors.info;
+    }
+  })();
+
   useEffect(() => {
-    // Slide in
     translateY.value = withTiming(0, { duration: ANIMATION_DURATION });
     opacity.value = withSequence(
       withTiming(1, { duration: ANIMATION_DURATION }),
@@ -68,12 +74,33 @@ const ToastInner = memo(function ToastInner({
 
   return (
     <Animated.View
-      style={[styles.toast, { backgroundColor: TOAST_BG[variant] }, animatedStyle]}
+      style={[
+        {
+          borderRadius: borderRadius.lg,
+          paddingVertical: spacing.md,
+          paddingHorizontal: spacing.lg,
+          backgroundColor: colors.surface,
+          borderWidth: 1,
+          borderColor: colors.border,
+          borderLeftWidth: 4,
+          borderLeftColor: accentColor,
+          ...shadows.lg,
+        },
+        animatedStyle,
+      ]}
       testID="toast-message"
       accessibilityRole="alert"
       accessibilityLiveRegion="polite"
     >
-      <Text style={styles.toastText}>{message}</Text>
+      <Text
+        style={{
+          ...typography.bodyMd,
+          fontFamily: fontFamily.medium,
+          color: colors.textPrimary,
+        }}
+      >
+        {message}
+      </Text>
     </Animated.View>
   );
 });
@@ -90,7 +117,13 @@ export const Toast = memo(function Toast() {
 
   return (
     <Animated.View
-      style={[styles.container, { top: insets.top + spacing.sm }]}
+      style={{
+        position: 'absolute' as const,
+        left: spacing.lg,
+        right: spacing.lg,
+        zIndex: 9999,
+        top: insets.top + spacing.sm,
+      }}
       pointerEvents="none"
     >
       <ToastInner
@@ -101,26 +134,6 @@ export const Toast = memo(function Toast() {
       />
     </Animated.View>
   );
-});
-
-const styles = StyleSheet.create({
-  container: {
-    position: 'absolute',
-    left: spacing.lg,
-    right: spacing.lg,
-    zIndex: 9999,
-  },
-  toast: {
-    borderRadius: borderRadius.md,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    ...shadows.md,
-  },
-  toastText: {
-    ...typography.bodyMd,
-    color: colors.white,
-    fontWeight: '500',
-  },
 });
 
 // Legacy context-based provider kept for backward compatibility.

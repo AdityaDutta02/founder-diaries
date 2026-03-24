@@ -115,8 +115,12 @@ export function useDiaryEntry(): UseDiaryEntryReturn {
 
       storeUpdate(id, { ...data, sync_status: 'pending', updated_at: now });
 
+      // Get entry_date from store for sync queue (required by processQueueItem)
+      const entryDate = useDiaryStore.getState().entries.get(id)?.entry_date;
+
       await addToSyncQueue('update_entry', {
         localId: id,
+        entryDate: entryDate,
         textContent: data.text_content,
         userId: session?.user.id,
       });

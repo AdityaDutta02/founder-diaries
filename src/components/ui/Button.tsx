@@ -2,15 +2,14 @@ import React, { memo } from 'react';
 import {
   ActivityIndicator,
   Pressable,
-  StyleSheet,
   Text,
   View,
   type PressableProps,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
-import { colors } from '@/theme/colors';
-import { typography } from '@/theme/typography';
+import { useTheme } from '@/theme/ThemeContext';
+import { typography, fontFamily } from '@/theme/typography';
 import { borderRadius, spacing } from '@/theme/spacing';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
@@ -27,11 +26,13 @@ export interface ButtonProps extends Omit<PressableProps, 'style'> {
   icon?: React.ReactNode;
   iconPosition?: 'left' | 'right';
   style?: StyleProp<ViewStyle>;
+  /** Pill shape: uses borderRadius.full instead of borderRadius.md */
+  pill?: boolean;
   testID?: string;
 }
 
 const HEIGHT: Record<ButtonSize, number> = {
-  sm: 32,
+  sm: 44,
   md: 44,
   lg: 52,
 };
@@ -42,11 +43,11 @@ const HORIZONTAL_PADDING: Record<ButtonSize, number> = {
   lg: spacing.xl,
 };
 
-function resolveIndicatorColor(variant: ButtonVariant): string {
-  if (variant === 'primary' || variant === 'danger') return colors.white;
-  if (variant === 'outline') return colors.primary[500];
-  return colors.gray[700];
-}
+const FONT_SIZE: Record<ButtonSize, number> = {
+  sm: 13,
+  md: 15,
+  lg: 16,
+};
 
 export const Button = memo(function Button({
   label,
@@ -59,25 +60,86 @@ export const Button = memo(function Button({
   icon,
   iconPosition = 'left',
   style,
+  pill = false,
   testID,
   ...rest
 }: ButtonProps) {
+  const { colors } = useTheme();
   const isSpinning = loading || isLoading;
   const isDisabled = disabled || isSpinning;
   const height = HEIGHT[size];
   const horizontalPadding = HORIZONTAL_PADDING[size];
+  const radius = pill ? borderRadius.full : borderRadius.md;
+
+  const variantContainerStyle: ViewStyle = (() => {
+    switch (variant) {
+      case 'primary':
+        return { backgroundColor: colors.accent };
+      case 'secondary':
+        return {
+          backgroundColor: 'transparent',
+          borderWidth: 1.5,
+          borderColor: colors.accent,
+        };
+      case 'outline':
+        return {
+          backgroundColor: 'transparent',
+          borderWidth: 1.5,
+          borderColor: colors.accent,
+        };
+      case 'ghost':
+        return { backgroundColor: 'transparent' };
+      case 'danger':
+        return { backgroundColor: colors.error };
+    }
+  })();
+
+  const labelColor: string = (() => {
+    switch (variant) {
+      case 'primary':
+        return colors.accentText;
+      case 'secondary':
+      case 'outline':
+        return colors.accent;
+      case 'ghost':
+        return colors.textPrimary;
+      case 'danger':
+        return colors.white;
+    }
+  })();
+
+  const indicatorColor: string = (() => {
+    switch (variant) {
+      case 'primary':
+        return colors.accentText;
+      case 'danger':
+        return colors.white;
+      case 'secondary':
+      case 'outline':
+        return colors.accent;
+      case 'ghost':
+        return colors.textPrimary;
+    }
+  })();
 
   return (
     <Pressable
       testID={testID ?? `button-${label}`}
       disabled={isDisabled}
       style={({ pressed }) => [
-        styles.base,
-        styles[`variant_${variant}`],
-        { height, paddingHorizontal: horizontalPadding },
-        fullWidth && styles.fullWidth,
-        pressed && !isDisabled && styles.pressed,
-        isDisabled && styles.disabled,
+        {
+          alignItems: 'center' as const,
+          justifyContent: 'center' as const,
+          borderRadius: radius,
+          flexDirection: 'row' as const,
+          minWidth: 44,
+          height,
+          paddingHorizontal: horizontalPadding,
+        },
+        variantContainerStyle,
+        fullWidth && { width: '100%' as const },
+        pressed && !isDisabled && { opacity: 0.75 },
+        isDisabled && { opacity: 0.45 },
         style,
       ]}
       accessibilityRole="button"
@@ -88,28 +150,29 @@ export const Button = memo(function Button({
       {isSpinning ? (
         <ActivityIndicator
           size="small"
-          color={resolveIndicatorColor(variant)}
+          color={indicatorColor}
           testID="button-loading-indicator"
         />
       ) : (
-        <View style={styles.content}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           {icon && iconPosition === 'left' && (
-            <View style={styles.iconLeft} accessibilityElementsHidden>
+            <View style={{ marginRight: spacing.sm }} accessibilityElementsHidden>
               {icon}
             </View>
           )}
           <Text
-            style={[
-              styles.labelBase,
-              styles[`labelText_${variant}`],
-              styles[`labelSize_${size}`],
-            ]}
+            style={{
+              ...typography.button,
+              fontFamily: fontFamily.semibold,
+              fontSize: FONT_SIZE[size],
+              color: labelColor,
+            }}
             numberOfLines={1}
           >
             {label}
           </Text>
           {icon && iconPosition === 'right' && (
-            <View style={styles.iconRight} accessibilityElementsHidden>
+            <View style={{ marginLeft: spacing.sm }} accessibilityElementsHidden>
               {icon}
             </View>
           )}
@@ -117,83 +180,4 @@ export const Button = memo(function Button({
       )}
     </Pressable>
   );
-});
-
-const styles = StyleSheet.create({
-  base: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: borderRadius.lg,
-    flexDirection: 'row',
-    minWidth: 44,
-  },
-  fullWidth: {
-    width: '100%',
-  },
-  pressed: {
-    opacity: 0.8,
-  },
-  disabled: {
-    opacity: 0.5,
-  },
-  content: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  iconLeft: {
-    marginRight: spacing.sm,
-  },
-  iconRight: {
-    marginLeft: spacing.sm,
-  },
-  // Variant container styles
-  variant_primary: {
-    backgroundColor: colors.primary[500],
-  },
-  variant_secondary: {
-    backgroundColor: colors.gray[100],
-    borderWidth: 1,
-    borderColor: colors.gray[200],
-  },
-  variant_outline: {
-    backgroundColor: 'transparent',
-    borderWidth: 1.5,
-    borderColor: colors.primary[500],
-  },
-  variant_ghost: {
-    backgroundColor: 'transparent',
-  },
-  variant_danger: {
-    backgroundColor: colors.error,
-  },
-  // Label base
-  labelBase: {
-    ...typography.button,
-  },
-  // Label variant text colors
-  labelText_primary: {
-    color: colors.white,
-  },
-  labelText_secondary: {
-    color: colors.gray[700],
-  },
-  labelText_outline: {
-    color: colors.primary[500],
-  },
-  labelText_ghost: {
-    color: colors.gray[700],
-  },
-  labelText_danger: {
-    color: colors.white,
-  },
-  // Label size overrides
-  labelSize_sm: {
-    fontSize: 14,
-  },
-  labelSize_md: {
-    fontSize: 16,
-  },
-  labelSize_lg: {
-    fontSize: 16,
-  },
 });

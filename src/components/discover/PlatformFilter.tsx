@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeContext';
 import { typography } from '@/theme/typography';
 import { borderRadius, spacing } from '@/theme/spacing';
 
@@ -29,6 +29,8 @@ export const PlatformFilter = memo(function PlatformFilter({
   onSelect,
   testID,
 }: PlatformFilterProps) {
+  const { colors } = useTheme();
+
   return (
     <View testID={testID ?? 'platform-filter'}>
       <ScrollView
@@ -43,8 +45,13 @@ export const PlatformFilter = memo(function PlatformFilter({
               key={option.value}
               style={({ pressed }) => [
                 styles.pill,
-                isSelected && styles.pillSelected,
-                pressed && !isSelected && styles.pillPressed,
+                isSelected
+                  ? { backgroundColor: colors.accent, borderColor: colors.accent }
+                  : {
+                      backgroundColor: colors.surface2,
+                      borderColor: colors.border,
+                      opacity: pressed ? 0.7 : 1,
+                    },
               ]}
               onPress={() => onSelect(option.value)}
               accessibilityRole="button"
@@ -52,7 +59,14 @@ export const PlatformFilter = memo(function PlatformFilter({
               accessibilityLabel={`Filter by ${option.label}`}
               testID={`platform-filter-${option.value}`}
             >
-              <Text style={[styles.pillLabel, isSelected && styles.pillLabelSelected]}>
+              <Text
+                style={[
+                  styles.pillLabel,
+                  {
+                    color: isSelected ? colors.accentText : colors.textSecondary,
+                  },
+                ]}
+              >
                 {option.label}
               </Text>
             </Pressable>
@@ -74,24 +88,9 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
     borderRadius: borderRadius.full,
-    backgroundColor: 'transparent',
-    borderWidth: 1.5,
-    borderColor: colors.gray[200],
-  },
-  pillSelected: {
-    backgroundColor: colors.primary[500],
-    borderColor: colors.primary[500],
-  },
-  pillPressed: {
-    opacity: 0.7,
+    borderWidth: 1,
   },
   pillLabel: {
-    ...typography.bodySm,
-    color: colors.gray[500],
-    fontWeight: '500',
-  },
-  pillLabelSelected: {
-    color: colors.white,
-    fontWeight: '600',
+    ...typography.label,
   },
 });

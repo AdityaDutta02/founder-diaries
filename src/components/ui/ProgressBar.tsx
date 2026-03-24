@@ -1,17 +1,18 @@
 import React, { memo, useEffect } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
-import { colors } from '@/theme/colors';
-import { typography } from '@/theme/typography';
+import { useTheme } from '@/theme/ThemeContext';
+import { typography, fontFamily } from '@/theme/typography';
 import { borderRadius, spacing } from '@/theme/spacing';
 
 export interface ProgressBarProps {
   /** Value between 0 and 1 */
   progress: number;
+  /** Override the fill color. Defaults to colors.accent. */
   color?: string;
   height?: number;
   label?: string;
@@ -22,11 +23,13 @@ const ANIMATION_DURATION = 300;
 
 export const ProgressBar = memo(function ProgressBar({
   progress,
-  color = colors.primary[500],
+  color,
   height = 8,
   label,
   testID,
 }: ProgressBarProps) {
+  const { colors } = useTheme();
+  const fillColor = color ?? colors.accent;
   const clampedProgress = Math.min(1, Math.max(0, progress));
   const widthPercent = useSharedValue(clampedProgress * 100);
 
@@ -45,55 +48,62 @@ export const ProgressBar = memo(function ProgressBar({
   return (
     <View testID={testID ?? 'progress-bar'}>
       {label ? (
-        <View style={styles.labelRow}>
-          <Text style={styles.label}>{label}</Text>
-          <Text style={styles.percentText}>{accessibilityValue}%</Text>
+        <View
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: spacing.xs,
+          }}
+        >
+          <Text
+            style={{
+              ...typography.label,
+              fontFamily: fontFamily.semibold,
+              color: colors.textSecondary,
+            }}
+          >
+            {label}
+          </Text>
+          <Text
+            style={{
+              ...typography.label,
+              fontFamily: fontFamily.semibold,
+              color: colors.textMuted,
+            }}
+          >
+            {accessibilityValue}%
+          </Text>
         </View>
       ) : null}
       <View
-        style={[styles.track, { height, borderRadius: height / 2 }]}
+        style={{
+          width: '100%',
+          height,
+          borderRadius: borderRadius.full,
+          backgroundColor: colors.surface2,
+          overflow: 'hidden',
+        }}
         accessibilityRole="progressbar"
         accessibilityLabel={label ?? 'Progress'}
         accessibilityValue={{ min: 0, max: 100, now: accessibilityValue }}
       >
         <Animated.View
           style={[
-            styles.fill,
+            {
+              position: 'absolute',
+              left: 0,
+              top: 0,
+              bottom: 0,
+              height,
+              borderRadius: borderRadius.full,
+              backgroundColor: fillColor,
+            },
             animatedFillStyle,
-            { height, borderRadius: height / 2, backgroundColor: color },
           ]}
           testID="progress-bar-fill"
         />
       </View>
     </View>
   );
-});
-
-const styles = StyleSheet.create({
-  labelRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.xs,
-  },
-  label: {
-    ...typography.label,
-    color: colors.gray[700],
-  },
-  percentText: {
-    ...typography.label,
-    color: colors.gray[500],
-  },
-  track: {
-    width: '100%',
-    backgroundColor: colors.gray[200],
-    overflow: 'hidden',
-    borderRadius: borderRadius.full,
-  },
-  fill: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-  },
 });

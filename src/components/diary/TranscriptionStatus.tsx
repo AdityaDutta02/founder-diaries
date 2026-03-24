@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors } from '@/theme/colors';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { useTheme } from '@/theme/ThemeContext';
 import { typography } from '@/theme/typography';
 import { spacing, borderRadius } from '@/theme/spacing';
 
@@ -13,91 +13,102 @@ interface TranscriptionStatusProps {
   testID?: string;
 }
 
-const STATUS_CONFIG: Record<
-  TranscriptionStatusValue,
-  { icon: string; label: string; color: string }
-> = {
-  pending: { icon: '🕐', label: 'Waiting to transcribe...', color: colors.gray[500] },
-  processing: { icon: '', label: 'Transcribing...', color: colors.warning },
-  completed: { icon: '✓', label: 'Transcribed', color: colors.success },
-  failed: { icon: '✕', label: 'Transcription failed', color: colors.error },
-};
-
 export const TranscriptionStatus = memo(function TranscriptionStatus({
   status,
   transcribedText,
   onRetry,
   testID,
 }: TranscriptionStatusProps) {
-  const config = STATUS_CONFIG[status];
+  const { colors } = useTheme();
+
+  const statusConfig: Record<
+    TranscriptionStatusValue,
+    { icon: string; label: string; color: string }
+  > = {
+    pending: { icon: '🕐', label: 'Waiting to transcribe...', color: colors.textMuted },
+    processing: { icon: '', label: 'Transcribing...', color: colors.warning },
+    completed: { icon: '✓', label: 'Transcribed', color: colors.success },
+    failed: { icon: '✕', label: 'Transcription failed', color: colors.error },
+  };
+
+  const config = statusConfig[status];
 
   return (
-    <View style={styles.container} testID={testID ?? 'transcription-status'}>
-      <View style={styles.row}>
+    <View
+      style={{
+        backgroundColor: colors.surface2,
+        borderRadius: borderRadius.md,
+        padding: spacing.md,
+        gap: spacing.sm,
+      }}
+      testID={testID ?? 'transcription-status'}
+    >
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: spacing.sm,
+        }}
+      >
         {status === 'processing' ? (
           <ActivityIndicator
             size="small"
-            color={colors.warning}
+            color={colors.accent}
             testID="transcription-spinner"
           />
         ) : (
-          <Text style={[styles.icon, { color: config.color }]}>{config.icon}</Text>
+          <Text style={{ fontSize: 14, fontWeight: '600', color: config.color }}>
+            {config.icon}
+          </Text>
         )}
-        <Text style={[styles.label, { color: config.color }]}>{config.label}</Text>
+        <Text
+          style={{
+            ...typography.bodySm,
+            color: colors.textSecondary,
+            fontWeight: '500',
+            flex: 1,
+          }}
+        >
+          {config.label}
+        </Text>
         {status === 'failed' && onRetry ? (
           <Pressable
             onPress={onRetry}
-            style={styles.retryButton}
+            style={{
+              paddingHorizontal: spacing.sm,
+              paddingVertical: spacing.xs,
+              backgroundColor: colors.error,
+              borderRadius: borderRadius.sm,
+            }}
             accessibilityRole="button"
             accessibilityLabel="Retry transcription"
             testID="transcription-retry-button"
           >
-            <Text style={styles.retryText}>Retry</Text>
+            <Text
+              style={{
+                ...typography.bodySm,
+                color: colors.white,
+                fontWeight: '600',
+              }}
+            >
+              Retry
+            </Text>
           </Pressable>
         ) : null}
       </View>
       {status === 'completed' && transcribedText ? (
-        <Text style={styles.transcribedText} testID="transcription-text">
+        <Text
+          style={{
+            ...typography.bodyMd,
+            color: colors.textSecondary,
+            lineHeight: 20,
+            paddingLeft: spacing.xl,
+          }}
+          testID="transcription-text"
+        >
           {transcribedText}
         </Text>
       ) : null}
     </View>
   );
-});
-
-const styles = StyleSheet.create({
-  container: {
-    gap: spacing.sm,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  icon: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  label: {
-    ...typography.bodySm,
-    fontWeight: '500',
-  },
-  retryButton: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    backgroundColor: colors.error,
-    borderRadius: borderRadius.sm,
-    marginLeft: spacing.xs,
-  },
-  retryText: {
-    ...typography.bodySm,
-    color: colors.white,
-    fontWeight: '600',
-  },
-  transcribedText: {
-    ...typography.bodyMd,
-    color: colors.gray[700],
-    lineHeight: 20,
-    paddingLeft: spacing.xl,
-  },
 });

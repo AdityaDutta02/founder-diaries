@@ -1,22 +1,20 @@
 import React, { memo, useCallback, useRef, useState } from 'react';
 import {
-  Dimensions,
   FlatList,
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
   type ListRenderItemInfo,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from 'react-native';
 import type { CarouselSlide } from '@/stores/contentStore';
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeContext';
 import { typography } from '@/theme/typography';
 import { borderRadius, spacing } from '@/theme/spacing';
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
 const SLIDE_PADDING = spacing.lg * 2;
-const SLIDE_SIZE = SCREEN_WIDTH - SLIDE_PADDING;
 
 interface CarouselPreviewProps {
   slides: CarouselSlide[];
@@ -24,21 +22,49 @@ interface CarouselPreviewProps {
   testID?: string;
 }
 
-function SlideItem({ slide, index }: { slide: CarouselSlide; index: number }) {
+interface SlideItemProps {
+  slide: CarouselSlide;
+  index: number;
+  slideWidth: number;
+}
+
+function SlideItem({ slide, index, slideWidth }: SlideItemProps) {
+  const { colors } = useTheme();
+
   return (
-    <View style={styles.slide} testID={`carousel-slide-${index}`}>
-      <View style={styles.slideInner}>
-        <Text style={styles.slideNumber}>
+    <View style={[styles.slide, { width: slideWidth }]} testID={`carousel-slide-${index}`}>
+      <View
+        style={[
+          styles.slideInner,
+          {
+            backgroundColor: colors.accentLight,
+            borderColor: colors.accent + '4D', // 0.3 opacity
+          },
+        ]}
+      >
+        <Text
+          style={[styles.slideNumber, { color: colors.textMuted }]}
+          testID={`carousel-slide-num-${index}`}
+        >
           {slide.slideNumber}
         </Text>
-        <Text style={styles.heading} testID={`carousel-heading-${index}`}>
+        <Text
+          style={[styles.heading, { color: colors.textPrimary }]}
+          testID={`carousel-heading-${index}`}
+        >
           {slide.heading}
         </Text>
-        <Text style={styles.bodyText} testID={`carousel-body-${index}`}>
+        <Text
+          style={[styles.bodyText, { color: colors.textPrimary }]}
+          testID={`carousel-body-${index}`}
+        >
           {slide.bodyText}
         </Text>
         {slide.imagePrompt ? (
-          <Text style={styles.imagePromptHint} numberOfLines={2}>
+          <Text
+            style={[styles.imagePromptHint, { color: colors.textMuted }]}
+            numberOfLines={2}
+          >
             Image: {slide.imagePrompt}
           </Text>
         ) : null}
@@ -52,12 +78,15 @@ export const CarouselPreview = memo(function CarouselPreview({
   onSlideChange,
   testID,
 }: CarouselPreviewProps) {
+  const { colors } = useTheme();
+  const { width: screenWidth } = useWindowDimensions();
+  const slideSize = screenWidth - SLIDE_PADDING;
   const [currentIndex, setCurrentIndex] = useState(0);
   const flatListRef = useRef<FlatList<CarouselSlide>>(null);
 
   const handleScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const index = Math.round(event.nativeEvent.contentOffset.x / SLIDE_SIZE);
+      const index = Math.round(event.nativeEvent.contentOffset.x / slideSize);
       if (index !== currentIndex) {
         setCurrentIndex(index);
         onSlideChange?.(index);
@@ -68,9 +97,9 @@ export const CarouselPreview = memo(function CarouselPreview({
 
   const renderItem = useCallback(
     ({ item, index }: ListRenderItemInfo<CarouselSlide>) => (
-      <SlideItem slide={item} index={index} />
+      <SlideItem slide={item} index={index} slideWidth={slideSize} />
     ),
-    [],
+    [slideSize],
   );
 
   const keyExtractor = useCallback(
@@ -90,12 +119,15 @@ export const CarouselPreview = memo(function CarouselPreview({
         showsHorizontalScrollIndicator={false}
         onScroll={handleScroll}
         scrollEventThrottle={16}
-        snapToInterval={SLIDE_SIZE}
+        snapToInterval={slideSize}
         decelerationRate="fast"
       />
 
       {/* Counter */}
-      <Text style={styles.counter} testID="carousel-counter">
+      <Text
+        style={[styles.counter, { color: colors.textMuted }]}
+        testID="carousel-counter"
+      >
         {currentIndex + 1}/{slides.length}
       </Text>
 
@@ -104,7 +136,14 @@ export const CarouselPreview = memo(function CarouselPreview({
         {slides.map((_, index) => (
           <View
             key={index}
-            style={[styles.dot, index === currentIndex && styles.dotActive]}
+            style={[
+              styles.dot,
+              {
+                backgroundColor:
+                  index === currentIndex ? colors.accent : colors.border,
+                width: index === currentIndex ? 16 : 6,
+              },
+            ]}
             testID={`carousel-dot-${index}`}
           />
         ))}
@@ -118,47 +157,41 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   slide: {
-    width: SLIDE_SIZE,
+    // width set dynamically via style prop
     aspectRatio: 1,
     marginHorizontal: 0,
   },
   slideInner: {
     flex: 1,
-    backgroundColor: colors.primary[50],
     borderRadius: borderRadius.lg,
+    borderWidth: 1,
     padding: spacing['2xl'],
     justifyContent: 'center',
     alignItems: 'center',
     gap: spacing.md,
   },
   slideNumber: {
-    ...typography.bodySm,
-    color: colors.primary[500],
-    fontWeight: '600',
+    ...typography.label,
     position: 'absolute',
     top: spacing.md,
     right: spacing.md,
   },
   heading: {
     ...typography.headingMd,
-    color: colors.gray[900],
     textAlign: 'center',
   },
   bodyText: {
     ...typography.bodyMd,
-    color: colors.gray[700],
     textAlign: 'center',
   },
   imagePromptHint: {
     ...typography.bodySm,
-    color: colors.gray[400],
     textAlign: 'center',
     fontStyle: 'italic',
     marginTop: spacing.sm,
   },
   counter: {
-    ...typography.bodySm,
-    color: colors.gray[500],
+    ...typography.caption,
     textAlign: 'right',
     paddingHorizontal: spacing.xs,
   },
@@ -168,13 +201,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   dot: {
-    width: 6,
     height: 6,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.gray[200],
-  },
-  dotActive: {
-    backgroundColor: colors.primary[500],
-    width: 16,
   },
 });

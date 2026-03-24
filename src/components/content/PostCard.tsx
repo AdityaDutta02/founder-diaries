@@ -2,9 +2,9 @@ import React, { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import type { GeneratedPost } from '@/stores/contentStore';
-import { colors } from '@/theme/colors';
-import { typography } from '@/theme/typography';
-import { borderRadius, shadows, spacing } from '@/theme/spacing';
+import { useTheme } from '@/theme/ThemeContext';
+import { typography, fontFamily } from '@/theme/typography';
+import { borderRadius, spacing } from '@/theme/spacing';
 import { PlatformBadge } from './PlatformBadge';
 import { ContentTypeIcon } from './ContentTypeIcon';
 
@@ -14,14 +14,6 @@ interface PostCardProps {
   compact?: boolean;
   testID?: string;
 }
-
-const STATUS_COLORS: Record<GeneratedPost['status'], string> = {
-  draft: colors.warning,
-  approved: colors.success,
-  scheduled: colors.info,
-  posted: colors.gray[500],
-  rejected: colors.error,
-};
 
 const STATUS_LABELS: Record<GeneratedPost['status'], string> = {
   draft: 'Draft',
@@ -47,69 +39,115 @@ export const PostCard = memo(function PostCard({
   compact = false,
   testID,
 }: PostCardProps) {
-  const statusColor = STATUS_COLORS[post.status];
+  const { colors } = useTheme();
   const statusLabel = STATUS_LABELS[post.status];
+
+  const platformColor = colors.platform[post.platform];
+
+  function getStatusColors(): { bg: string; text: string } {
+    switch (post.status) {
+      case 'draft':
+        return { bg: colors.surface2, text: colors.textMuted };
+      case 'approved':
+        return { bg: colors.successLight, text: colors.success };
+      case 'scheduled':
+        return { bg: colors.infoLight, text: colors.info };
+      case 'posted':
+        return { bg: colors.surface2, text: colors.textSecondary };
+      case 'rejected':
+        return { bg: colors.errorLight, text: colors.error };
+    }
+  }
+
+  const statusColors = getStatusColors();
 
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+      style={({ pressed }) => [
+        styles.card,
+        {
+          backgroundColor: colors.surface,
+          borderColor: colors.border,
+        },
+        pressed && { opacity: 0.85 },
+      ]}
       testID={testID ?? `post-card-${post.id}`}
       accessibilityRole="button"
       accessibilityLabel={`${post.platform} ${post.content_type} post: ${post.title ?? post.body_text}`}
     >
-      {/* Top row */}
-      <View style={styles.topRow}>
-        <View style={styles.topLeft}>
-          <PlatformBadge platform={post.platform} size="sm" />
-          <ContentTypeIcon contentType={post.content_type} />
-        </View>
-        <View
-          style={[styles.statusBadge, { backgroundColor: statusColor + '20' }]}
-          testID={`post-status-${post.id}`}
-        >
-          <Text style={[styles.statusText, { color: statusColor }]}>{statusLabel}</Text>
-        </View>
-      </View>
+      {/* Left platform accent stripe */}
+      <View style={[styles.leftAccent, { backgroundColor: platformColor }]} />
 
-      {/* Content row */}
-      <View style={styles.contentRow}>
-        <View style={styles.textContent}>
-          {post.title ? (
-            <Text style={styles.title} numberOfLines={2} testID={`post-title-${post.id}`}>
-              {post.title}
+      <View style={styles.innerContent}>
+        {/* Top row */}
+        <View style={styles.topRow}>
+          <View style={styles.topLeft}>
+            <PlatformBadge platform={post.platform} size="sm" />
+            <ContentTypeIcon contentType={post.content_type} />
+          </View>
+          <View
+            style={[
+              styles.statusBadge,
+              { backgroundColor: statusColors.bg },
+            ]}
+            testID={`post-status-${post.id}`}
+          >
+            <Text style={[styles.statusText, { color: statusColors.text }]}>
+              {statusLabel}
+            </Text>
+          </View>
+        </View>
+
+        {/* Content row */}
+        <View style={styles.contentRow}>
+          <View style={styles.textContent}>
+            {post.title ? (
+              <Text
+                style={[styles.title, { color: colors.textPrimary }]}
+                numberOfLines={2}
+                testID={`post-title-${post.id}`}
+              >
+                {post.title}
+              </Text>
+            ) : null}
+            <Text
+              style={[styles.bodyText, { color: colors.textSecondary }]}
+              numberOfLines={3}
+              testID={`post-body-${post.id}`}
+            >
+              {post.body_text}
+            </Text>
+          </View>
+
+          {!compact && post.generated_image_url ? (
+            <Image
+              source={{ uri: post.generated_image_url }}
+              style={styles.thumbnail}
+              contentFit="cover"
+              accessibilityLabel="Generated post image"
+              testID={`post-image-${post.id}`}
+            />
+          ) : null}
+        </View>
+
+        {/* Bottom row */}
+        <View style={styles.bottomRow}>
+          {post.diary_entry_id ? (
+            <Text
+              style={[styles.metaText, { color: colors.textMuted }]}
+              testID={`post-diary-ref-${post.id}`}
+            >
+              From diary
             </Text>
           ) : null}
           <Text
-            style={styles.bodyText}
-            numberOfLines={3}
-            testID={`post-body-${post.id}`}
+            style={[styles.metaText, { color: colors.textMuted }]}
+            testID={`post-created-${post.id}`}
           >
-            {post.body_text}
+            {formatDate(post.created_at)} · {formatTime(post.created_at)}
           </Text>
         </View>
-
-        {!compact && post.generated_image_url ? (
-          <Image
-            source={{ uri: post.generated_image_url }}
-            style={styles.thumbnail}
-            contentFit="cover"
-            accessibilityLabel="Generated post image"
-            testID={`post-image-${post.id}`}
-          />
-        ) : null}
-      </View>
-
-      {/* Bottom row */}
-      <View style={styles.bottomRow}>
-        {post.diary_entry_id ? (
-          <Text style={styles.metaText} testID={`post-diary-ref-${post.id}`}>
-            From diary
-          </Text>
-        ) : null}
-        <Text style={styles.metaText} testID={`post-created-${post.id}`}>
-          {formatDate(post.created_at)} · {formatTime(post.created_at)}
-        </Text>
       </View>
     </Pressable>
   );
@@ -117,14 +155,20 @@ export const PostCard = memo(function PostCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.white,
     borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    flexDirection: 'row',
+    overflow: 'hidden',
+  },
+  leftAccent: {
+    width: 3,
+    borderTopLeftRadius: borderRadius.lg,
+    borderBottomLeftRadius: borderRadius.lg,
+  },
+  innerContent: {
+    flex: 1,
     padding: spacing.lg,
     gap: spacing.sm,
-    ...shadows.md,
-  },
-  pressed: {
-    opacity: 0.95,
   },
   topRow: {
     flexDirection: 'row',
@@ -144,7 +188,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     ...typography.label,
-    fontWeight: '600',
+    fontFamily: fontFamily.semibold,
   },
   contentRow: {
     flexDirection: 'row',
@@ -156,11 +200,9 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.headingSm,
-    color: colors.gray[900],
   },
   bodyText: {
     ...typography.bodyMd,
-    color: colors.gray[500],
   },
   thumbnail: {
     width: 80,
@@ -172,7 +214,6 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   metaText: {
-    ...typography.bodySm,
-    color: colors.gray[400],
+    ...typography.caption,
   },
 });

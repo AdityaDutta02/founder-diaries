@@ -1,11 +1,12 @@
 import React, { memo } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
-import { colors } from '@/theme/colors';
+import { ActivityIndicator, View } from 'react-native';
+import { useTheme } from '@/theme/ThemeContext';
 
 export type SpinnerSize = 'sm' | 'md' | 'lg';
 
 export interface LoadingSpinnerProps {
   size?: SpinnerSize;
+  /** Override the spinner color. Defaults to colors.accent. */
   color?: string;
   testID?: string;
 }
@@ -18,30 +19,25 @@ const SIZE_VALUES: Record<SpinnerSize, number> = {
 
 export const LoadingSpinner = memo(function LoadingSpinner({
   size = 'md',
-  color = colors.primary[500],
+  color,
   testID,
 }: LoadingSpinnerProps) {
+  const { colors } = useTheme();
   const dimension = SIZE_VALUES[size];
+  const spinnerColor = color ?? colors.accent;
 
   return (
     <View
-      style={styles.container}
+      style={{ alignItems: 'center', justifyContent: 'center' }}
       testID={testID ?? 'loading-spinner'}
       accessibilityRole="progressbar"
       accessibilityLabel="Loading"
     >
       <ActivityIndicator
         size={dimension}
-        color={color}
+        color={spinnerColor}
         testID="activity-indicator"
       />
     </View>
   );
-});
-
-const styles = StyleSheet.create({
-  container: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
 });

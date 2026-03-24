@@ -2,56 +2,83 @@ import React, { useMemo } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors } from '@/theme/colors';
-import { typography } from '@/theme/typography';
-import { borderRadius, shadows, spacing } from '@/theme/spacing';
+import { useTheme } from '@/theme/ThemeContext';
+import { typography, fontFamily } from '@/theme/typography';
+import { borderRadius, spacing } from '@/theme/spacing';
 import { useContentStore } from '@/stores/contentStore';
 import type { GeneratedPost, Platform, PostStatus } from '@/types/database';
 import { PlatformBadge } from '@/components/discover/PlatformBadge';
 
-// ─── Platform-specific mocks ────────────────────────────────────────────────
+// ─── LinkedIn Mock ───────────────────────────────────────────────────────────
 
 interface LinkedInMockProps {
   post: GeneratedPost;
 }
 
 function LinkedInMock({ post }: LinkedInMockProps) {
+  const { colors } = useTheme();
   return (
-    <View style={linkedInStyles.container} testID="linkedin-mock">
+    <View
+      style={[
+        linkedInStyles.container,
+        { backgroundColor: colors.surface, borderRadius: borderRadius.md, borderColor: colors.border },
+      ]}
+      testID="linkedin-mock"
+    >
       {/* Profile header */}
       <View style={linkedInStyles.header}>
-        <View style={linkedInStyles.avatar}>
-          <Text style={linkedInStyles.avatarText}>FD</Text>
+        <View style={[linkedInStyles.avatar, { backgroundColor: colors.platform.linkedin }]}>
+          <Text style={[linkedInStyles.avatarText, { color: colors.white }]}>FD</Text>
         </View>
         <View style={linkedInStyles.headerInfo}>
-          <Text style={linkedInStyles.authorName}>Founder Diaries</Text>
-          <Text style={linkedInStyles.authorMeta}>Founder • 1st+</Text>
-          <Text style={linkedInStyles.timestamp}>Just now • 🌐</Text>
+          <Text style={[typography.headingSm, { color: colors.textPrimary, fontSize: 15 }]}>
+            Founder Diaries
+          </Text>
+          <Text style={[typography.bodySm, { color: colors.textSecondary }]}>
+            Founder • 1st+
+          </Text>
+          <Text style={[typography.bodySm, { color: colors.textMuted }]}>
+            Just now • 🌐
+          </Text>
         </View>
       </View>
 
       {/* Post text */}
-      <Text style={linkedInStyles.postText}>{post.body_text}</Text>
+      <Text
+        style={[
+          typography.bodyMd,
+          { color: colors.textPrimary, paddingHorizontal: spacing.md, paddingBottom: spacing.md, lineHeight: 22 },
+        ]}
+      >
+        {post.body_text}
+      </Text>
 
       {/* Image if available */}
       {post.generated_image_url ? (
         <Image
           source={{ uri: post.generated_image_url }}
-          style={linkedInStyles.image}
+          style={[linkedInStyles.image, { backgroundColor: colors.surface2 }]}
           resizeMode="cover"
           testID="linkedin-image"
         />
       ) : null}
 
       {/* Reaction bar */}
-      <View style={linkedInStyles.reactionBar}>
+      <View
+        style={[linkedInStyles.reactionBar, { borderTopColor: colors.border }]}
+      >
         <Text style={linkedInStyles.reactions}>👍 ❤️ 💡</Text>
-        <Text style={linkedInStyles.reactionCount}>Be the first to react</Text>
+        <Text style={[typography.bodySm, { color: colors.textSecondary }]}>
+          Be the first to react
+        </Text>
       </View>
 
-      <View style={linkedInStyles.actionBar}>
+      <View style={[linkedInStyles.actionBar, { borderTopColor: colors.border }]}>
         {['Like', 'Comment', 'Repost', 'Send'].map((action) => (
-          <Text key={action} style={linkedInStyles.actionButton}>
+          <Text
+            key={action}
+            style={[typography.bodySm, { color: colors.textSecondary, fontFamily: fontFamily.semibold }]}
+          >
             {action}
           </Text>
         ))}
@@ -62,9 +89,7 @@ function LinkedInMock({ post }: LinkedInMockProps) {
 
 const linkedInStyles = StyleSheet.create({
   container: {
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.md,
-    ...shadows.md,
+    borderWidth: 1,
     overflow: 'hidden',
   },
   header: {
@@ -77,42 +102,19 @@ const linkedInStyles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: colors.platform.linkedin,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: {
-    color: colors.white,
     fontWeight: '700',
     fontSize: 14,
   },
   headerInfo: {
     flex: 1,
   },
-  authorName: {
-    ...typography.headingSm,
-    color: colors.gray[900],
-    fontSize: 15,
-  },
-  authorMeta: {
-    ...typography.bodySm,
-    color: colors.gray[500],
-  },
-  timestamp: {
-    ...typography.bodySm,
-    color: colors.gray[400],
-  },
-  postText: {
-    ...typography.bodyMd,
-    color: colors.gray[900],
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.md,
-    lineHeight: 22,
-  },
   image: {
     width: '100%',
     height: 220,
-    backgroundColor: colors.gray[100],
   },
   reactionBar: {
     flexDirection: 'row',
@@ -120,27 +122,16 @@ const linkedInStyles = StyleSheet.create({
     gap: spacing.sm,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.gray[100],
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
   reactions: {
     fontSize: 14,
-  },
-  reactionCount: {
-    ...typography.bodySm,
-    color: colors.gray[500],
   },
   actionBar: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     paddingVertical: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.gray[100],
-  },
-  actionButton: {
-    ...typography.bodySm,
-    color: colors.gray[500],
-    fontWeight: '600',
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
 });
 
@@ -151,21 +142,43 @@ interface InstagramMockProps {
 }
 
 function InstagramMock({ post }: InstagramMockProps) {
+  const { colors } = useTheme();
   return (
-    <View style={instagramStyles.container} testID="instagram-mock">
+    <View
+      style={[
+        instagramStyles.container,
+        { backgroundColor: colors.surface, borderRadius: borderRadius.md, borderColor: colors.border },
+      ]}
+      testID="instagram-mock"
+    >
       {/* Profile header */}
       <View style={instagramStyles.header}>
-        <View style={instagramStyles.avatarRing}>
-          <View style={instagramStyles.avatar}>
-            <Text style={instagramStyles.avatarText}>FD</Text>
+        <View
+          style={[
+            instagramStyles.avatarRing,
+            { borderColor: colors.platform.instagram },
+          ]}
+        >
+          <View style={[instagramStyles.avatar, { backgroundColor: colors.platform.instagram }]}>
+            <Text style={[instagramStyles.avatarText, { color: colors.white }]}>FD</Text>
           </View>
         </View>
-        <Text style={instagramStyles.username}>founder_diaries</Text>
-        <Text style={instagramStyles.moreIcon}>···</Text>
+        <Text
+          style={[
+            typography.headingSm,
+            { color: colors.textPrimary, fontSize: 14, flex: 1 },
+          ]}
+        >
+          founder_diaries
+        </Text>
+        <Text style={[instagramStyles.moreIcon, { color: colors.textPrimary }]}>···</Text>
       </View>
 
       {/* Image placeholder or actual image */}
-      <View style={instagramStyles.imagePlaceholder} testID="instagram-image-area">
+      <View
+        style={[instagramStyles.imagePlaceholder, { backgroundColor: colors.surface2 }]}
+        testID="instagram-image-area"
+      >
         {post.generated_image_url ? (
           <Image
             source={{ uri: post.generated_image_url }}
@@ -189,8 +202,18 @@ function InstagramMock({ post }: InstagramMockProps) {
 
       {/* Caption */}
       <View style={instagramStyles.caption}>
-        <Text style={instagramStyles.captionAuthor}>founder_diaries</Text>
-        <Text style={instagramStyles.captionText} numberOfLines={3}>
+        <Text
+          style={[
+            typography.headingSm,
+            { color: colors.textPrimary, fontSize: 14 },
+          ]}
+        >
+          founder_diaries
+        </Text>
+        <Text
+          style={[typography.bodyMd, { color: colors.textSecondary, flex: 1, flexWrap: 'wrap' }]}
+          numberOfLines={3}
+        >
           {' '}{post.body_text}
         </Text>
       </View>
@@ -200,9 +223,7 @@ function InstagramMock({ post }: InstagramMockProps) {
 
 const instagramStyles = StyleSheet.create({
   container: {
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.md,
-    ...shadows.md,
+    borderWidth: 1,
     overflow: 'hidden',
   },
   header: {
@@ -215,36 +236,25 @@ const instagramStyles = StyleSheet.create({
     padding: 2,
     borderRadius: 22,
     borderWidth: 2,
-    borderColor: colors.platform.instagram,
   },
   avatar: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: colors.platform.instagram,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: {
-    color: colors.white,
     fontWeight: '700',
     fontSize: 12,
   },
-  username: {
-    ...typography.headingSm,
-    color: colors.gray[900],
-    fontSize: 14,
-    flex: 1,
-  },
   moreIcon: {
     fontSize: 18,
-    color: colors.gray[900],
     letterSpacing: 1,
   },
   imagePlaceholder: {
     width: '100%',
     height: 300,
-    backgroundColor: colors.gray[100],
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -275,17 +285,6 @@ const instagramStyles = StyleSheet.create({
     paddingBottom: spacing.md,
     gap: 4,
   },
-  captionAuthor: {
-    ...typography.headingSm,
-    color: colors.gray[900],
-    fontSize: 14,
-  },
-  captionText: {
-    ...typography.bodyMd,
-    color: colors.gray[700],
-    flex: 1,
-    flexWrap: 'wrap',
-  },
 });
 
 // ─── X (Twitter) Mock ────────────────────────────────────────────────────────
@@ -295,41 +294,76 @@ interface XMockProps {
 }
 
 function XMock({ post }: XMockProps) {
+  const { colors } = useTheme();
   return (
-    <View style={xStyles.container} testID="x-mock">
+    <View
+      style={[
+        xStyles.container,
+        { backgroundColor: colors.surface, borderRadius: borderRadius.md, borderColor: colors.border },
+      ]}
+      testID="x-mock"
+    >
       <View style={xStyles.header}>
-        <View style={xStyles.avatar}>
-          <Text style={xStyles.avatarText}>FD</Text>
+        <View style={[xStyles.avatar, { backgroundColor: colors.platform.x }]}>
+          <Text style={[xStyles.avatarText, { color: colors.white }]}>FD</Text>
         </View>
         <View style={xStyles.headerInfo}>
           <View style={xStyles.nameRow}>
-            <Text style={xStyles.displayName}>Founder Diaries</Text>
-            <Text style={xStyles.handle}>@founder_diaries</Text>
+            <Text style={[typography.headingSm, { color: colors.textPrimary, fontSize: 15 }]}>
+              Founder Diaries
+            </Text>
+            <Text style={[typography.bodySm, { color: colors.textSecondary }]}>
+              @founder_diaries
+            </Text>
           </View>
         </View>
-        <Text style={xStyles.xLogo}>✖</Text>
+        <Text
+          style={[xStyles.xLogo, { color: colors.textPrimary }]}
+        >
+          ✖
+        </Text>
       </View>
 
-      <Text style={xStyles.tweetText}>{post.body_text}</Text>
+      <Text
+        style={[
+          typography.bodyMd,
+          { color: colors.textPrimary, lineHeight: 22, marginBottom: spacing.sm },
+        ]}
+      >
+        {post.body_text}
+      </Text>
 
       {post.generated_image_url ? (
         <Image
           source={{ uri: post.generated_image_url }}
-          style={xStyles.image}
+          style={[
+            xStyles.image,
+            { backgroundColor: colors.surface2, borderRadius: borderRadius.md },
+          ]}
           resizeMode="cover"
           testID="x-image"
         />
       ) : null}
 
-      <Text style={xStyles.timestamp}>Just now · Twitter for iPhone</Text>
+      <Text
+        style={[typography.bodySm, { color: colors.textMuted, marginBottom: spacing.sm }]}
+      >
+        Just now · Twitter for iPhone
+      </Text>
 
-      <View style={xStyles.stats}>
-        <Text style={xStyles.statText}>0 Reposts</Text>
-        <Text style={xStyles.statText}>0 Quotes</Text>
-        <Text style={xStyles.statText}>0 Likes</Text>
+      <View style={[xStyles.stats, { borderTopColor: colors.border }]}>
+        <Text style={[typography.bodySm, { color: colors.textSecondary, fontFamily: fontFamily.medium }]}>
+          0 Reposts
+        </Text>
+        <Text style={[typography.bodySm, { color: colors.textSecondary, fontFamily: fontFamily.medium }]}>
+          0 Quotes
+        </Text>
+        <Text style={[typography.bodySm, { color: colors.textSecondary, fontFamily: fontFamily.medium }]}>
+          0 Likes
+        </Text>
       </View>
 
-      <View style={xStyles.actions}>
+      <View style={[xStyles.actions, { borderTopColor: colors.border }]}>
         {['💬', '🔁', '❤️', '↗️'].map((icon) => (
           <Text key={icon} style={xStyles.actionIcon}>
             {icon}
@@ -342,9 +376,7 @@ function XMock({ post }: XMockProps) {
 
 const xStyles = StyleSheet.create({
   container: {
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.md,
-    ...shadows.md,
+    borderWidth: 1,
     overflow: 'hidden',
     padding: spacing.md,
   },
@@ -358,12 +390,10 @@ const xStyles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: colors.platform.x,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: {
-    color: colors.white,
     fontWeight: '700',
     fontSize: 14,
   },
@@ -376,56 +406,26 @@ const xStyles = StyleSheet.create({
     gap: spacing.sm,
     flexWrap: 'wrap',
   },
-  displayName: {
-    ...typography.headingSm,
-    color: colors.gray[900],
-    fontSize: 15,
-  },
-  handle: {
-    ...typography.bodySm,
-    color: colors.gray[500],
-  },
   xLogo: {
     fontSize: 18,
-    color: colors.gray[900],
     fontWeight: '700',
-  },
-  tweetText: {
-    ...typography.bodyMd,
-    color: colors.gray[900],
-    lineHeight: 22,
-    marginBottom: spacing.sm,
   },
   image: {
     width: '100%',
     height: 200,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.gray[100],
-    marginBottom: spacing.sm,
-  },
-  timestamp: {
-    ...typography.bodySm,
-    color: colors.gray[500],
     marginBottom: spacing.sm,
   },
   stats: {
     flexDirection: 'row',
     gap: spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: colors.gray[100],
+    borderTopWidth: StyleSheet.hairlineWidth,
     paddingTop: spacing.sm,
     marginBottom: spacing.sm,
-  },
-  statText: {
-    ...typography.bodySm,
-    color: colors.gray[700],
-    fontWeight: '500',
   },
   actions: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    borderTopWidth: 1,
-    borderTopColor: colors.gray[100],
+    borderTopWidth: StyleSheet.hairlineWidth,
     paddingTop: spacing.sm,
   },
   actionIcon: {
@@ -435,13 +435,18 @@ const xStyles = StyleSheet.create({
 
 // ─── Status badge color map ──────────────────────────────────────────────────
 
-const STATUS_BADGE_STYLES: Record<PostStatus, { backgroundColor: string }> = {
-  draft: { backgroundColor: colors.gray[400] },
-  approved: { backgroundColor: colors.success },
-  scheduled: { backgroundColor: colors.info },
-  posted: { backgroundColor: colors.primary[500] },
-  rejected: { backgroundColor: colors.error },
-};
+type StatusColors = Record<PostStatus, string>;
+
+function useStatusBgColors(): StatusColors {
+  const { colors } = useTheme();
+  return {
+    draft: colors.textMuted,
+    approved: colors.success,
+    scheduled: colors.info,
+    posted: colors.accent,
+    rejected: colors.error,
+  };
+}
 
 // ─── Main Modal ──────────────────────────────────────────────────────────────
 
@@ -454,15 +459,20 @@ const PLATFORM_LABELS: PlatformLabel = {
 };
 
 export default function PostPreviewModal() {
+  const { colors } = useTheme();
   const router = useRouter();
   const { postId } = useLocalSearchParams<{ postId: string }>();
   const posts = useContentStore((s) => s.posts);
+  const statusBgColors = useStatusBgColors();
 
   const post = useMemo(() => posts.find((p) => p.id === postId) ?? null, [posts, postId]);
 
   if (!post) {
     return (
-      <SafeAreaView style={styles.safeArea} testID="post-preview-modal">
+      <SafeAreaView
+        style={{ flex: 1, backgroundColor: colors.background }}
+        testID="post-preview-modal"
+      >
         <Pressable
           style={styles.closeButton}
           onPress={() => router.back()}
@@ -471,34 +481,54 @@ export default function PostPreviewModal() {
           accessibilityLabel="Close preview"
           testID="close-preview-button"
         >
-          <Text style={styles.closeIcon}>✕</Text>
+          <Text style={[styles.closeIcon, { color: colors.textSecondary }]}>✕</Text>
         </Pressable>
         <View style={styles.notFound}>
-          <Text style={styles.notFoundText}>Post not found.</Text>
+          <Text style={[typography.bodyMd, { color: colors.textMuted }]}>
+            Post not found.
+          </Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} testID="post-preview-modal">
-      {/* Close button */}
-      <Pressable
-        style={styles.closeButton}
-        onPress={() => router.back()}
-        hitSlop={8}
-        accessibilityRole="button"
-        accessibilityLabel="Close preview"
-        testID="close-preview-button"
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: colors.background }}
+      testID="post-preview-modal"
+    >
+      {/* Modal header */}
+      <View
+        style={[
+          styles.header,
+          { backgroundColor: colors.surface, borderBottomColor: colors.border },
+        ]}
       >
-        <Text style={styles.closeIcon}>✕</Text>
-      </Pressable>
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Close preview"
+          testID="close-preview-button"
+        >
+          <Text style={[typography.bodyMd, { color: colors.textSecondary }]}>Close</Text>
+        </Pressable>
+        <Text style={[typography.headingSm, { color: colors.textPrimary }]}>
+          {PLATFORM_LABELS[post.platform]} Preview
+        </Text>
+        <View style={styles.headerSpacer} />
+      </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Title */}
+      <ScrollView
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 24 }]}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Title row */}
         <View style={styles.titleRow}>
           <PlatformBadge platform={post.platform} size="md" />
-          <Text style={styles.title}>{PLATFORM_LABELS[post.platform]} Preview</Text>
+          <Text style={[typography.headingMd, { color: colors.textPrimary }]}>
+            {PLATFORM_LABELS[post.platform]} Preview
+          </Text>
         </View>
 
         {/* Platform-specific mock */}
@@ -507,23 +537,56 @@ export default function PostPreviewModal() {
         {post.platform === 'x' && <XMock post={post} />}
 
         {/* Meta info */}
-        <View style={styles.metaCard} testID="post-meta-card">
+        <View
+          style={[
+            styles.metaCard,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+              borderRadius: borderRadius.lg,
+            },
+          ]}
+          testID="post-meta-card"
+        >
           <View style={styles.metaRow}>
-            <Text style={styles.metaLabel}>Status</Text>
-            <View style={[styles.statusBadge, STATUS_BADGE_STYLES[post.status]]}>
-              <Text style={styles.statusText}>{post.status}</Text>
+            <Text style={[typography.bodySm, { color: colors.textMuted, fontFamily: fontFamily.medium }]}>
+              Status
+            </Text>
+            <View
+              style={[
+                styles.statusBadge,
+                {
+                  backgroundColor: statusBgColors[post.status],
+                  borderRadius: borderRadius.full,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  typography.bodySm,
+                  { color: colors.white, fontFamily: fontFamily.semibold, textTransform: 'capitalize' },
+                ]}
+              >
+                {post.status}
+              </Text>
             </View>
           </View>
           {post.content_type && (
             <View style={styles.metaRow}>
-              <Text style={styles.metaLabel}>Type</Text>
-              <Text style={styles.metaValue}>{post.content_type}</Text>
+              <Text style={[typography.bodySm, { color: colors.textMuted, fontFamily: fontFamily.medium }]}>
+                Type
+              </Text>
+              <Text style={[typography.bodySm, { color: colors.textSecondary, fontFamily: fontFamily.medium }]}>
+                {post.content_type}
+              </Text>
             </View>
           )}
           {post.scheduled_for && (
             <View style={styles.metaRow}>
-              <Text style={styles.metaLabel}>Scheduled</Text>
-              <Text style={styles.metaValue}>
+              <Text style={[typography.bodySm, { color: colors.textMuted, fontFamily: fontFamily.medium }]}>
+                Scheduled
+              </Text>
+              <Text style={[typography.bodySm, { color: colors.textSecondary, fontFamily: fontFamily.medium }]}>
                 {new Date(post.scheduled_for).toLocaleString()}
               </Text>
             </View>
@@ -535,9 +598,16 @@ export default function PostPreviewModal() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.gray[50],
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  headerSpacer: {
+    width: 60,
   },
   closeButton: {
     position: 'absolute',
@@ -548,12 +618,9 @@ const styles = StyleSheet.create({
   },
   closeIcon: {
     fontSize: 20,
-    color: colors.gray[700],
   },
   scrollContent: {
     padding: spacing.lg,
-    paddingTop: spacing['5xl'],
-    paddingBottom: spacing['3xl'],
     gap: spacing.xl,
   },
   titleRow: {
@@ -561,50 +628,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
-  title: {
-    ...typography.headingMd,
-    color: colors.gray[900],
-  },
   notFound: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  notFoundText: {
-    ...typography.bodyMd,
-    color: colors.gray[400],
-  },
   metaCard: {
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.lg,
+    borderWidth: 1,
     padding: spacing.md,
     gap: spacing.sm,
-    ...shadows.sm,
   },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  metaLabel: {
-    ...typography.bodySm,
-    color: colors.gray[500],
-    fontWeight: '500',
-  },
-  metaValue: {
-    ...typography.bodySm,
-    color: colors.gray[700],
-    fontWeight: '500',
-  },
   statusBadge: {
-    borderRadius: borderRadius.full,
     paddingVertical: 2,
     paddingHorizontal: spacing.sm,
-  },
-  statusText: {
-    ...typography.bodySm,
-    color: colors.white,
-    fontWeight: '600',
-    textTransform: 'capitalize',
   },
 });

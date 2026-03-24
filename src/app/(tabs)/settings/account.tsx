@@ -2,9 +2,9 @@ import React, { useCallback, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors } from '@/theme/colors';
-import { typography } from '@/theme/typography';
-import { borderRadius, shadows, spacing } from '@/theme/spacing';
+import { useTheme } from '@/theme/ThemeContext';
+import { typography, fontFamily } from '@/theme/typography';
+import { borderRadius, spacing } from '@/theme/spacing';
 import { HeaderBar } from '@/components/layout/HeaderBar';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -27,12 +27,11 @@ const INDUSTRY_OPTIONS = [
 ];
 
 export default function AccountScreen() {
+  const { colors } = useTheme();
   const router = useRouter();
-  const { profile, setProfile, signOut } = useAuthStore((s) => ({
-    profile: s.profile,
-    setProfile: s.setProfile,
-    signOut: s.signOut,
-  }));
+  const profile = useAuthStore((s) => s.profile);
+  const setProfile = useAuthStore((s) => s.setProfile);
+  const signOut = useAuthStore((s) => s.signOut);
 
   const [fullName, setFullName] = useState(profile?.full_name ?? '');
   const [industry, setIndustry] = useState(profile?.industry ?? '');
@@ -142,10 +141,13 @@ export default function AccountScreen() {
   }, [profile?.id, router, signOut]);
 
   return (
-    <SafeAreaView style={styles.safeArea} testID="account-screen">
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: colors.background }}
+      testID="account-screen"
+    >
       <HeaderBar title="Account" showBack />
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 24 }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
@@ -163,18 +165,46 @@ export default function AccountScreen() {
 
           {/* Email (read-only) */}
           <View style={styles.readOnlyField} testID="email-field">
-            <Text style={styles.fieldLabel}>Email</Text>
-            <View style={styles.readOnlyInput}>
-              <Text style={styles.readOnlyText} testID="email-value">
+            <Text
+              style={[
+                typography.label,
+                { color: colors.textSecondary, marginBottom: spacing.xs },
+              ]}
+            >
+              Email
+            </Text>
+            <View
+              style={[
+                styles.readOnlyInput,
+                {
+                  backgroundColor: colors.surface2,
+                  borderColor: colors.border,
+                  borderRadius: borderRadius.md,
+                },
+              ]}
+            >
+              <Text
+                style={[typography.bodyMd, { color: colors.textMuted }]}
+                testID="email-value"
+              >
                 {profile?.email ?? ''}
               </Text>
             </View>
-            <Text style={styles.fieldHint}>Email cannot be changed</Text>
+            <Text style={[typography.bodySm, { color: colors.textMuted }]}>
+              Email cannot be changed
+            </Text>
           </View>
 
           {/* Industry selector */}
           <View testID="industry-selector">
-            <Text style={styles.fieldLabel}>Industry</Text>
+            <Text
+              style={[
+                typography.label,
+                { color: colors.textSecondary, marginBottom: spacing.sm },
+              ]}
+            >
+              Industry
+            </Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -185,7 +215,12 @@ export default function AccountScreen() {
                   key={option}
                   style={[
                     styles.industryChip,
-                    industry === option && styles.industryChipSelected,
+                    {
+                      borderColor: industry === option ? colors.accent : colors.border,
+                      backgroundColor:
+                        industry === option ? colors.accentLight : 'transparent',
+                      borderRadius: borderRadius.full,
+                    },
                   ]}
                   onPress={() => setIndustry(option)}
                   accessibilityRole="button"
@@ -194,8 +229,12 @@ export default function AccountScreen() {
                 >
                   <Text
                     style={[
-                      styles.industryChipText,
-                      industry === option && styles.industryChipTextSelected,
+                      typography.bodySm,
+                      {
+                        fontFamily:
+                          industry === option ? fontFamily.semibold : fontFamily.regular,
+                        color: industry === option ? colors.accent : colors.textSecondary,
+                      },
                     ]}
                   >
                     {option}
@@ -207,7 +246,14 @@ export default function AccountScreen() {
 
           {/* Niche keywords */}
           <View testID="niche-keywords-section">
-            <Text style={styles.fieldLabel}>Niche Keywords</Text>
+            <Text
+              style={[
+                typography.label,
+                { color: colors.textSecondary, marginBottom: spacing.sm },
+              ]}
+            >
+              Niche Keywords
+            </Text>
             <View style={styles.keywordInputRow}>
               <View style={styles.keywordInputWrapper}>
                 <Input
@@ -221,13 +267,20 @@ export default function AccountScreen() {
                 />
               </View>
               <Pressable
-                style={styles.addKeywordButton}
+                style={[
+                  styles.addKeywordButton,
+                  { backgroundColor: colors.accent, borderRadius: borderRadius.md },
+                ]}
                 onPress={handleAddKeyword}
                 accessibilityRole="button"
                 accessibilityLabel="Add keyword"
                 testID="add-keyword-button"
               >
-                <Text style={styles.addKeywordText}>+</Text>
+                <Text
+                  style={[styles.addKeywordText, { color: colors.accentText }]}
+                >
+                  +
+                </Text>
               </Pressable>
             </View>
             {nicheKeywords.length > 0 && (
@@ -252,14 +305,16 @@ export default function AccountScreen() {
 
         {/* Delete account */}
         <View style={styles.dangerZone}>
-          <Button
-            label={isDeleting ? 'Deleting...' : 'Delete Account'}
-            variant="ghost"
-            disabled={isDeleting}
+          <Pressable
             onPress={handleDeleteAccount}
-            style={styles.deleteButton}
+            disabled={isDeleting}
             testID="delete-account-button"
-          />
+            accessibilityRole="button"
+          >
+            <Text style={[typography.bodyMd, { color: colors.error }]}>
+              {isDeleting ? 'Deleting...' : 'Delete Account'}
+            </Text>
+          </Pressable>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -267,14 +322,9 @@ export default function AccountScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.gray[50],
-  },
   scrollContent: {
     padding: spacing.lg,
     gap: spacing.lg,
-    paddingBottom: spacing['3xl'],
   },
   form: {
     gap: spacing.lg,
@@ -282,29 +332,12 @@ const styles = StyleSheet.create({
   readOnlyField: {
     gap: spacing.xs,
   },
-  fieldLabel: {
-    ...typography.label,
-    color: colors.gray[700],
-    marginBottom: spacing.xs,
-  },
   readOnlyInput: {
-    backgroundColor: colors.gray[100],
-    borderRadius: borderRadius.md,
     borderWidth: 1.5,
-    borderColor: colors.gray[200],
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm + 2,
     minHeight: 44,
     justifyContent: 'center',
-    ...shadows.sm,
-  },
-  readOnlyText: {
-    ...typography.bodyMd,
-    color: colors.gray[500],
-  },
-  fieldHint: {
-    ...typography.bodySm,
-    color: colors.gray[400],
   },
   industryScroll: {
     flexDirection: 'row',
@@ -314,23 +347,7 @@ const styles = StyleSheet.create({
   industryChip: {
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
-    borderRadius: borderRadius.full,
     borderWidth: 1.5,
-    borderColor: colors.gray[200],
-    backgroundColor: 'transparent',
-  },
-  industryChipSelected: {
-    backgroundColor: colors.primary[100],
-    borderColor: colors.primary[500],
-  },
-  industryChipText: {
-    ...typography.bodySm,
-    color: colors.gray[500],
-    fontWeight: '500',
-  },
-  industryChipTextSelected: {
-    color: colors.primary[600],
-    fontWeight: '600',
   },
   keywordInputRow: {
     flexDirection: 'row',
@@ -343,15 +360,11 @@ const styles = StyleSheet.create({
   addKeywordButton: {
     width: 44,
     height: 44,
-    backgroundColor: colors.primary[500],
-    borderRadius: borderRadius.md,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 0,
   },
   addKeywordText: {
     fontSize: 24,
-    color: colors.white,
     fontWeight: '400',
     lineHeight: 26,
   },
@@ -365,5 +378,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: spacing.md,
   },
-  deleteButton: {},
 });

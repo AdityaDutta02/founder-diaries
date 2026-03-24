@@ -1,7 +1,6 @@
 import React, { memo, useCallback, useState } from 'react';
 import {
   ScrollView,
-  StyleSheet,
   Text,
   TouchableOpacity,
   View,
@@ -12,7 +11,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { MoodSelector } from './MoodSelector';
 import { ImageAttachment } from './ImageAttachment';
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeContext';
 import { typography } from '@/theme/typography';
 import { spacing, borderRadius } from '@/theme/spacing';
 
@@ -41,6 +40,8 @@ export const DiaryEntryForm = memo(function DiaryEntryForm({
   entryDate,
   testID,
 }: DiaryEntryFormProps) {
+  const { colors } = useTheme();
+
   const [textContent, setTextContent] = useState<string>(
     initialEntry?.text_content ?? '',
   );
@@ -77,14 +78,21 @@ export const DiaryEntryForm = memo(function DiaryEntryForm({
 
   return (
     <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
+      style={{ flex: 1, backgroundColor: colors.background }}
+      contentContainerStyle={{
+        padding: spacing.lg,
+        gap: spacing.lg,
+        paddingBottom: 24,
+      }}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
       testID={testID ?? 'diary-entry-form'}
     >
       {/* Date display */}
-      <Text style={styles.dateLabel} testID="form-date-label">
+      <Text
+        style={{ ...typography.label, color: colors.textMuted }}
+        testID="form-date-label"
+      >
         {formattedDate}
       </Text>
 
@@ -96,48 +104,104 @@ export const DiaryEntryForm = memo(function DiaryEntryForm({
         multiline
         numberOfLines={8}
         textAlignVertical="top"
-        containerStyle={styles.textInputContainer}
+        containerStyle={{ minHeight: 160 }}
         testID="diary-text-input"
       />
 
+      {/* Section separator */}
+      <View
+        style={{
+          height: 1,
+          backgroundColor: colors.border,
+        }}
+      />
+
       {/* Action row */}
-      <View style={styles.actionRow}>
-        <TouchableOpacity
-          onPress={onRecordAudio}
-          style={[styles.actionButton, audioUri ? styles.actionButtonActive : null]}
-          accessibilityRole="button"
-          accessibilityLabel="Record audio"
-          testID="action-mic"
-        >
-          <Text style={styles.actionIcon}>{'🎤'}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={onPickImage}
-          style={styles.actionButton}
-          accessibilityRole="button"
-          accessibilityLabel="Add image"
-          testID="action-camera"
-        >
-          <Text style={styles.actionIcon}>{'📷'}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={toggleMoodSelector}
-          style={[styles.actionButton, mood ? styles.actionButtonActive : null]}
-          accessibilityRole="button"
-          accessibilityLabel="Select mood"
-          testID="action-mood"
-        >
-          <Text style={styles.actionIcon}>{'🙂'}</Text>
-        </TouchableOpacity>
+      <View style={{ gap: spacing.xs }}>
+        <Text style={{ ...typography.label, color: colors.textMuted }}>
+          Attachments
+        </Text>
+        <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+          <TouchableOpacity
+            onPress={onRecordAudio}
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: borderRadius.md,
+              backgroundColor: audioUri ? colors.accentLight : colors.surface2,
+              borderWidth: 1,
+              borderColor: audioUri ? colors.accent : colors.border,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Record audio"
+            testID="action-mic"
+          >
+            <Text style={{ fontSize: 20 }}>{'🎤'}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={onPickImage}
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: borderRadius.md,
+              backgroundColor: colors.surface2,
+              borderWidth: 1,
+              borderColor: colors.border,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Add image"
+            testID="action-camera"
+          >
+            <Text style={{ fontSize: 20 }}>{'📷'}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={toggleMoodSelector}
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: borderRadius.md,
+              backgroundColor: mood ? colors.accentLight : colors.surface2,
+              borderWidth: 1,
+              borderColor: mood ? colors.accent : colors.border,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Select mood"
+            testID="action-mood"
+          >
+            <Text style={{ fontSize: 20 }}>{'🙂'}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Audio preview */}
       {audioUri ? (
-        <View style={styles.audioPreview} testID="audio-preview">
-          <View style={styles.waveformPlaceholder}>
-            <Text style={styles.waveformText}>{'▬▬▬▬▬▬▬▬'}</Text>
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: colors.surface2,
+            borderRadius: borderRadius.md,
+            borderWidth: 1,
+            borderColor: colors.border,
+            padding: spacing.md,
+            gap: spacing.md,
+          }}
+          testID="audio-preview"
+        >
+          <View style={{ flex: 1 }}>
+            <Text style={{ ...typography.bodyMd, color: colors.accent, letterSpacing: 2 }}>
+              {'▬▬▬▬▬▬▬▬'}
+            </Text>
           </View>
-          <Text style={styles.audioDuration}>Audio recorded</Text>
+          <Text style={{ ...typography.bodySm, color: colors.textMuted }}>
+            Audio recorded
+          </Text>
         </View>
       ) : null}
 
@@ -149,6 +213,18 @@ export const DiaryEntryForm = memo(function DiaryEntryForm({
           onAdd={onPickImage}
           testID="form-image-attachment"
         />
+      ) : null}
+
+      {/* Section separator before mood */}
+      {showMoodSelector || mood ? (
+        <View style={{ height: 1, backgroundColor: colors.border }} />
+      ) : null}
+
+      {/* Mood section label */}
+      {(showMoodSelector || mood) ? (
+        <Text style={{ ...typography.label, color: colors.textMuted }}>
+          Mood
+        </Text>
       ) : null}
 
       {/* Mood selector */}
@@ -167,14 +243,25 @@ export const DiaryEntryForm = memo(function DiaryEntryForm({
       {mood && !showMoodSelector ? (
         <TouchableOpacity
           onPress={toggleMoodSelector}
-          style={styles.selectedMoodRow}
+          style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.xs }}
           accessibilityRole="button"
           accessibilityLabel={`Current mood: ${mood}. Tap to change.`}
           testID="selected-mood-display"
         >
-          <Text style={styles.selectedMoodLabel}>Mood: </Text>
-          <Text style={styles.selectedMoodValue}>{mood}</Text>
-          <Text style={styles.changeMoodHint}> (tap to change)</Text>
+          <Text style={{ ...typography.bodyMd, color: colors.textMuted }}>Mood: </Text>
+          <Text
+            style={{
+              ...typography.bodyMd,
+              color: colors.accent,
+              fontWeight: '600',
+              textTransform: 'capitalize',
+            }}
+          >
+            {mood}
+          </Text>
+          <Text style={{ ...typography.bodySm, color: colors.textMuted }}>
+            {' (tap to change)'}
+          </Text>
         </TouchableOpacity>
       ) : null}
 
@@ -185,87 +272,9 @@ export const DiaryEntryForm = memo(function DiaryEntryForm({
         fullWidth
         isLoading={isLoading}
         onPress={handleSave}
-        style={styles.saveButton}
+        style={{ marginTop: spacing.md }}
         testID="form-save-button"
       />
     </ScrollView>
   );
-});
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  content: {
-    padding: spacing.lg,
-    gap: spacing.md,
-  },
-  dateLabel: {
-    ...typography.headingSm,
-    color: colors.gray[700],
-    marginBottom: spacing.xs,
-  },
-  textInputContainer: {
-    minHeight: 160,
-  },
-  actionRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  actionButton: {
-    width: 44,
-    height: 44,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.gray[100],
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionButtonActive: {
-    backgroundColor: colors.primary[100],
-  },
-  actionIcon: {
-    fontSize: 20,
-  },
-  audioPreview: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.gray[100],
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
-    gap: spacing.md,
-  },
-  waveformPlaceholder: {
-    flex: 1,
-  },
-  waveformText: {
-    ...typography.bodyMd,
-    color: colors.primary[500],
-    letterSpacing: 2,
-  },
-  audioDuration: {
-    ...typography.bodySm,
-    color: colors.gray[500],
-  },
-  selectedMoodRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.xs,
-  },
-  selectedMoodLabel: {
-    ...typography.bodyMd,
-    color: colors.gray[500],
-  },
-  selectedMoodValue: {
-    ...typography.bodyMd,
-    color: colors.primary[600],
-    fontWeight: '600',
-    textTransform: 'capitalize',
-  },
-  changeMoodHint: {
-    ...typography.bodySm,
-    color: colors.gray[400],
-  },
-  saveButton: {
-    marginTop: spacing.md,
-  },
 });

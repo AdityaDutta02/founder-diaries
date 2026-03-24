@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { colors } from '@/theme/colors';
+import { Text, View } from 'react-native';
+import { useTheme } from '@/theme/ThemeContext';
 import { typography } from '@/theme/typography';
 import { spacing, borderRadius } from '@/theme/spacing';
 
@@ -15,74 +15,72 @@ export const DiscoveryCountdown = memo(function DiscoveryCountdown({
   totalDays,
   testID,
 }: DiscoveryCountdownProps) {
+  const { colors } = useTheme();
+
   const clampedDays = Math.min(Math.max(daysCompleted, 0), totalDays);
   const progressRatio = totalDays > 0 ? clampedDays / totalDays : 0;
+  const daysLeft = Math.max(totalDays - clampedDays, 0);
 
   return (
-    <View style={styles.card} testID={testID ?? 'discovery-countdown'}>
-      <Text style={styles.icon} accessibilityLabel="Unlock content engine">
-        {clampedDays === 0 ? '🔒' : '🚀'}
-      </Text>
-      <View style={styles.textContainer}>
-        <Text style={styles.heading}>Unlock Your Content Engine</Text>
-        <Text style={styles.body}>
-          Record your journey for 7 days to activate AI content generation
+    <View
+      style={{
+        backgroundColor: colors.surface,
+        borderRadius: borderRadius.lg,
+        borderWidth: 1,
+        borderColor: colors.border,
+        padding: spacing.lg,
+        gap: spacing.md,
+      }}
+      testID={testID ?? 'discovery-countdown'}
+    >
+      {/* Icon + title row */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+        <Text style={{ fontSize: 20 }} accessibilityLabel="Locked">
+          {'🔒'}
+        </Text>
+        <Text
+          style={{ ...typography.headingSm, color: colors.textPrimary, flex: 1 }}
+          testID="discovery-title"
+        >
+          Unlock AI-powered content
         </Text>
       </View>
-      <View style={styles.progressContainer} testID="progress-bar-container">
-        <View style={styles.progressTrack}>
+
+      {/* Body */}
+      <Text
+        style={{ ...typography.bodyMd, color: colors.textSecondary }}
+        testID="discovery-body"
+      >
+        {`Record for ${daysLeft} more ${daysLeft === 1 ? 'day' : 'days'} to discover creators in your niche.`}
+      </Text>
+
+      {/* Progress bar */}
+      <View style={{ gap: spacing.xs }} testID="progress-bar-container">
+        <View
+          style={{
+            height: 8,
+            backgroundColor: colors.surface2,
+            borderRadius: borderRadius.full,
+            overflow: 'hidden',
+          }}
+        >
           <View
-            style={[styles.progressFill, { width: `${progressRatio * 100}%` }]}
+            style={{
+              height: '100%',
+              width: `${progressRatio * 100}%`,
+              backgroundColor: colors.accent,
+              borderRadius: borderRadius.full,
+            }}
             testID="progress-fill"
           />
         </View>
-        <Text style={styles.progressLabel} testID="progress-label">
-          {`${clampedDays}/${totalDays} days completed`}
+        <Text
+          style={{ ...typography.label, color: colors.textMuted }}
+          testID="progress-label"
+        >
+          {`${clampedDays} of ${totalDays} days`}
         </Text>
       </View>
     </View>
   );
-});
-
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.primary[50],
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    gap: spacing.md,
-  },
-  icon: {
-    fontSize: 28,
-    alignSelf: 'flex-start',
-  },
-  textContainer: {
-    gap: spacing.xs,
-  },
-  heading: {
-    ...typography.headingMd,
-    color: colors.primary[700],
-  },
-  body: {
-    ...typography.bodySm,
-    color: colors.primary[600],
-    lineHeight: 18,
-  },
-  progressContainer: {
-    gap: spacing.xs,
-  },
-  progressTrack: {
-    height: 6,
-    backgroundColor: colors.primary[200],
-    borderRadius: borderRadius.full,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: colors.primary[500],
-    borderRadius: borderRadius.full,
-  },
-  progressLabel: {
-    ...typography.label,
-    color: colors.primary[600],
-  },
 });

@@ -1,15 +1,14 @@
 import React, { memo } from 'react';
 import {
   Pressable,
-  StyleSheet,
   View,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
-import { colors } from '@/theme/colors';
-import { borderRadius, shadows, spacing } from '@/theme/spacing';
+import { useTheme } from '@/theme/ThemeContext';
+import { borderRadius, spacing } from '@/theme/spacing';
 
-export type CardVariant = 'elevated' | 'outlined' | 'filled';
+export type CardVariant = 'default' | 'elevated' | 'outlined' | 'ghost' | 'accent' | 'filled';
 export type CardPadding = 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'none';
 
 export interface CardProps {
@@ -33,28 +32,70 @@ const PADDING_VALUES: Record<CardPadding, number> = {
 
 export const Card = memo(function Card({
   children,
-  variant = 'elevated',
+  variant = 'default',
   padding = 'lg',
   onPress,
   style,
   testID,
   accessibilityLabel,
 }: CardProps) {
+  const { colors, shadows } = useTheme();
   const paddingValue = PADDING_VALUES[padding];
-  const cardStyle = [
-    styles.base,
-    styles[`variant_${variant}`],
-    { padding: paddingValue },
-    style,
-  ];
+
+  const variantStyle: ViewStyle = (() => {
+    switch (variant) {
+      case 'default':
+        return {
+          backgroundColor: colors.surface,
+          borderWidth: 1,
+          borderColor: colors.border,
+        };
+      case 'elevated':
+        return {
+          backgroundColor: colors.surface,
+          borderWidth: 1,
+          borderColor: colors.border,
+          ...shadows.md,
+        };
+      case 'outlined':
+        return {
+          backgroundColor: 'transparent',
+          borderWidth: 1,
+          borderColor: colors.borderStrong,
+        };
+      case 'ghost':
+        return {
+          backgroundColor: colors.surface2,
+        };
+      case 'accent':
+        return {
+          backgroundColor: colors.accentLight,
+          borderWidth: 1,
+          borderColor: colors.accent + '4D', // ~30% opacity
+        };
+      // Backward compat: 'filled' maps to ghost behavior
+      case 'filled':
+        return {
+          backgroundColor: colors.surface2,
+        };
+    }
+  })();
+
+  const baseStyle: ViewStyle = {
+    borderRadius: borderRadius.lg,
+    overflow: 'hidden',
+    padding: paddingValue,
+  };
+
+  const composedStyle = [baseStyle, variantStyle, style];
 
   if (onPress) {
     return (
       <Pressable
         onPress={onPress}
         style={({ pressed }) => [
-          ...cardStyle,
-          pressed && styles.pressed,
+          ...composedStyle,
+          pressed && { opacity: 0.8 },
         ]}
         testID={testID ?? 'card'}
         accessibilityRole="button"
@@ -67,7 +108,7 @@ export const Card = memo(function Card({
 
   return (
     <View
-      style={cardStyle}
+      style={composedStyle}
       testID={testID ?? 'card'}
       accessibilityRole="none"
       accessibilityLabel={accessibilityLabel}
@@ -75,26 +116,4 @@ export const Card = memo(function Card({
       {children}
     </View>
   );
-});
-
-const styles = StyleSheet.create({
-  base: {
-    borderRadius: borderRadius.lg,
-    overflow: 'hidden',
-  },
-  variant_elevated: {
-    backgroundColor: colors.white,
-    ...shadows.md,
-  },
-  variant_outlined: {
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.gray[200],
-  },
-  variant_filled: {
-    backgroundColor: colors.gray[50],
-  },
-  pressed: {
-    opacity: 0.8,
-  },
 });

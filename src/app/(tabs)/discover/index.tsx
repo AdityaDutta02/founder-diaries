@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -10,18 +10,23 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors } from '@/theme/colors';
-import { typography } from '@/theme/typography';
-import { borderRadius, spacing } from '@/theme/spacing';
-import { HeaderBar } from '@/components/layout/HeaderBar';
-import { CreatorCard, PlatformFilter } from '@/components/discover';
-import type { CreatorCardData, DiscoverPlatformFilter } from '@/components/discover';
+import { useTheme } from '@/theme/ThemeContext';
+import { typography, fontFamily } from '@/theme/typography';
+import { spacing } from '@/theme/spacing';
+import {
+  CreatorCard,
+  DiscoverLockedView,
+  DiscoverVoiceTab,
+  PlatformFilter,
+} from '@/components/discover';
+import type { CreatorCardData, DiscoverPlatformFilter, WritingProfile } from '@/components/discover';
 import { useAuthStore } from '@/stores/authStore';
+import { useDiaryStore } from '@/stores/diaryStore';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/lib/logger';
 import type { Platform } from '@/types/database';
 
-const PLATFORM_SECTIONS: Array<{ platform: Platform; label: string }> = [
+const PLATFORM_SECTIONS: { platform: Platform; label: string }[] = [
   { platform: 'linkedin', label: 'LinkedIn Creators' },
   { platform: 'instagram', label: 'Instagram Creators' },
   { platform: 'x', label: 'X Creators' },
@@ -33,41 +38,40 @@ interface CreatorsByPlatform {
   x: CreatorCardData[];
 }
 
+type DiscoverTab = 'creators' | 'voice';
+
 export default function DiscoverScreen() {
+  const { colors } = useTheme();
   const router = useRouter();
   const profile = useAuthStore((s) => s.profile);
+  const getDaysWithEntries = useDiaryStore((s) => s.getDaysWithEntries);
 
+  const [activeTab, setActiveTab] = useState<DiscoverTab>('creators');
   const [platformFilter, setPlatformFilter] = useState<DiscoverPlatformFilter>('all');
   const [creators, setCreators] = useState<CreatorsByPlatform>({
     linkedin: [],
     instagram: [],
     x: [],
   });
+  const [writingProfiles, setWritingProfiles] = useState<WritingProfile[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const discoveryUnlocked = profile?.discovery_unlocked ?? false;
-
-  const daysRecorded = useCallback((): number => {
-    if (!profile?.diary_start_date) return 0;
-    const start = new Date(profile.diary_start_date);
-    const now = new Date();
-    const diff = Math.floor((now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-    return Math.min(diff, 7);
-  }, [profile?.diary_start_date]);
+  const completedDays = Math.min(getDaysWithEntries(), 7);
+  const mountedRef = useRef(true);
 
   const fetchCreators = useCallback(async (showRefresh = false) => {
-    if (showRefresh) {
-      setIsRefreshing(true);
-    } else {
-      setIsLoading(true);
-    }
+    if (showRefresh) setIsRefreshing(true);
+    else setIsLoading(true);
 
     try {
       const { data, error } = await supabase
         .from('creator_profiles')
         .select('id, creator_name, creator_handle, platform, follower_count, bio, relevance_score')
         .order('relevance_score', { ascending: false });
+
+      if (!mountedRef.current) return;
 
       if (error) {
         logger.error('Failed to fetch creator profiles', { error: error.message });
@@ -77,146 +81,192 @@ export default function DiscoverScreen() {
       const grouped: CreatorsByPlatform = { linkedin: [], instagram: [], x: [] };
       for (const item of data ?? []) {
         const p = item.platform as Platform;
-        if (p in grouped) {
-          grouped[p].push(item as CreatorCardData);
-        }
+        if (p in grouped) grouped[p].push(item as CreatorCardData);
       }
       setCreators(grouped);
     } catch (err) {
+      if (!mountedRef.current) return;
       logger.error('Unexpected error fetching creators', {
         error: err instanceof Error ? err.message : String(err),
       });
     } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
+      if (mountedRef.current) {
+        setIsLoading(false);
+        setIsRefreshing(false);
+      }
     }
   }, []);
 
+  const fetchWritingProfiles = useCallback(async () => {
+    if (!profile?.id) return;
+    try {
+      const { data, error } = await supabase
+        .from('writing_profiles')
+        .select('id, platform, tone, hook_style, typical_length, example_hooks')
+        .eq('user_id', profile.id);
+
+      if (!mountedRef.current) return;
+
+      if (error) {
+        logger.warn('Failed to fetch writing profiles', { error: error.message });
+        return;
+      }
+      setWritingProfiles((data ?? []) as WritingProfile[]);
+    } catch (err) {
+      if (!mountedRef.current) return;
+      logger.error('Unexpected error fetching writing profiles', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }, [profile?.id]);
+
   useEffect(() => {
     if (discoveryUnlocked) {
-      fetchCreators();
+      void fetchCreators();
+      void fetchWritingProfiles();
     }
-  }, [discoveryUnlocked, fetchCreators]);
+    return () => { mountedRef.current = false; };
+  }, [discoveryUnlocked, fetchCreators, fetchWritingProfiles]);
 
   const handleCreatorPress = useCallback(
-    (id: string) => {
-      router.push(`/discover/${id}`);
-    },
+    (id: string) => router.push(`/discover/${id}`),
     [router],
   );
 
+  const handleGoToDiary = useCallback(
+    () => router.push('/(tabs)/diary'),
+    [router],
+  );
+
+  // ─── Locked ───────────────────────────────────────────────────────────────
   if (!discoveryUnlocked) {
-    const days = daysRecorded();
     return (
-      <SafeAreaView style={styles.safeArea} testID="discover-locked-screen">
-        <View style={styles.lockedContainer}>
-          <Text style={styles.lockEmoji}>🔒</Text>
-          <Text style={styles.lockedTitle}>Discover is locked</Text>
-          <Text style={styles.lockedBody}>
-            Record your journey for 7 days to unlock discovery
-          </Text>
-
-          {/* Progress bar */}
-          <View style={styles.progressContainer} testID="unlock-progress">
-            <View style={styles.progressTrack}>
-              <View
-                style={[styles.progressFill, { width: `${(days / 7) * 100}%` }]}
-                testID="progress-fill"
-              />
-            </View>
-            <Text style={styles.progressLabel}>{days} / 7 days</Text>
-          </View>
-
-          <Pressable
-            onPress={() => router.push('/(tabs)/diary')}
-            style={styles.diaryLink}
-            accessibilityRole="link"
-            testID="go-to-diary-link"
-          >
-            <Text style={styles.diaryLinkText}>Go to diary →</Text>
-          </Pressable>
+      <SafeAreaView
+        style={[styles.safeArea, { backgroundColor: colors.background }]}
+        edges={['top']}
+        testID="discover-locked-screen"
+      >
+        <View style={[styles.header, { borderBottomColor: colors.border }]}>
+          <Text style={[styles.headerTitle, { color: colors.textMuted }]}>Discover</Text>
         </View>
+        <DiscoverLockedView
+          completedDays={completedDays}
+          onGoToDiary={handleGoToDiary}
+        />
       </SafeAreaView>
     );
   }
 
+  // ─── Unlocked ─────────────────────────────────────────────────────────────
   const visibleSections =
     platformFilter === 'all'
       ? PLATFORM_SECTIONS
       : PLATFORM_SECTIONS.filter((s) => s.platform === platformFilter);
 
   return (
-    <SafeAreaView style={styles.safeArea} testID="discover-screen">
-      <HeaderBar
-        title="Discover"
-        rightAction={
-          <Pressable
-            onPress={() => fetchCreators(true)}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel="Refresh creators"
-            testID="discover-refresh-button"
-          >
-            <Text style={styles.refreshIcon}>↻</Text>
-          </Pressable>
-        }
-      />
+    <SafeAreaView
+      style={[styles.safeArea, { backgroundColor: colors.background }]}
+      edges={['top']}
+      testID="discover-screen"
+    >
+      {/* Header */}
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Discover</Text>
+        <Pressable
+          onPress={() => void fetchCreators(true)}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Refresh creators"
+          testID="discover-refresh-btn"
+        >
+          <Text style={[styles.refreshIcon, { color: colors.textSecondary }]}>{'↻'}</Text>
+        </Pressable>
+      </View>
 
-      <FlatList
-        data={visibleSections}
-        keyExtractor={(item) => item.platform}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={() => fetchCreators(true)}
-            tintColor={colors.primary[500]}
-          />
-        }
-        ListHeaderComponent={
-          <View style={styles.listHeader}>
-            <PlatformFilter selected={platformFilter} onSelect={setPlatformFilter} />
-            <Pressable
-              style={styles.profilesLink}
-              onPress={() => router.push('/discover/profiles')}
-              accessibilityRole="link"
-              testID="writing-profiles-link"
-            >
-              <Text style={styles.profilesLinkText}>View Writing Profiles →</Text>
-            </Pressable>
-          </View>
-        }
-        renderItem={({ item: section }) => {
-          const sectionCreators = creators[section.platform];
+      {/* Segment control */}
+      <View style={[styles.segmentBar, { borderBottomColor: colors.border }]}>
+        {(['creators', 'voice'] as DiscoverTab[]).map((tab) => {
+          const isActive = activeTab === tab;
+          const label = tab === 'creators' ? 'Creators' : 'Your Voice';
           return (
-            <View style={styles.section} testID={`section-${section.platform}`}>
-              <Text style={styles.sectionTitle}>{section.label}</Text>
-              {isLoading ? (
-                <ActivityIndicator
-                  color={colors.primary[500]}
-                  style={styles.sectionLoader}
-                  testID={`section-loader-${section.platform}`}
-                />
-              ) : sectionCreators.length === 0 ? (
-                <View style={styles.emptyState} testID={`empty-state-${section.platform}`}>
-                  <Text style={styles.emptyText}>No creators found for this platform yet.</Text>
-                </View>
-              ) : (
-                <FlatList
-                  data={sectionCreators}
-                  keyExtractor={(creator) => creator.id}
-                  scrollEnabled={false}
-                  ItemSeparatorComponent={() => <View style={styles.cardSeparator} />}
-                  renderItem={({ item: creator }) => (
-                    <CreatorCard creator={creator} onPress={handleCreatorPress} />
-                  )}
-                />
-              )}
-            </View>
+            <Pressable
+              key={tab}
+              onPress={() => setActiveTab(tab)}
+              style={[
+                styles.segmentBtn,
+                isActive && [styles.segmentBtnActive, { borderBottomColor: colors.accent }],
+              ]}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: isActive }}
+              testID={`segment-${tab}`}
+            >
+              <Text
+                style={[
+                  styles.segmentLabel,
+                  { color: isActive ? colors.accent : colors.textMuted },
+                  isActive && { fontFamily: fontFamily.semiBold },
+                ]}
+              >
+                {label}
+              </Text>
+            </Pressable>
           );
-        }}
-        contentContainerStyle={styles.listContent}
-      />
+        })}
+      </View>
+
+      {/* Creators tab */}
+      {activeTab === 'creators' && (
+        <FlatList
+          data={visibleSections}
+          keyExtractor={(item) => item.platform}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={() => void fetchCreators(true)}
+              tintColor={colors.accent}
+            />
+          }
+          ListHeaderComponent={
+            <View style={styles.listHeader}>
+              <PlatformFilter selected={platformFilter} onSelect={setPlatformFilter} />
+            </View>
+          }
+          renderItem={({ item: section }) => {
+            const sectionCreators = creators[section.platform];
+            return (
+              <View style={styles.section} testID={`section-${section.platform}`}>
+                <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+                  {section.label}
+                </Text>
+                {isLoading ? (
+                  <ActivityIndicator color={colors.accent} style={styles.sectionLoader} />
+                ) : sectionCreators.length === 0 ? (
+                  <View style={styles.emptyState}>
+                    <Text style={[styles.emptyText, { color: colors.textMuted }]}>
+                      No creators found yet.
+                    </Text>
+                  </View>
+                ) : (
+                  <FlatList
+                    data={sectionCreators}
+                    keyExtractor={(c) => c.id}
+                    scrollEnabled={false}
+                    ItemSeparatorComponent={() => <View style={styles.cardSeparator} />}
+                    renderItem={({ item: creator }) => (
+                      <CreatorCard creator={creator} onPress={handleCreatorPress} />
+                    )}
+                  />
+                )}
+              </View>
+            );
+          }}
+          contentContainerStyle={styles.listContent}
+        />
+      )}
+
+      {/* Your Voice tab */}
+      {activeTab === 'voice' && <DiscoverVoiceTab profiles={writingProfiles} />}
     </SafeAreaView>
   );
 }
@@ -224,72 +274,45 @@ export default function DiscoverScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.gray[50],
   },
-  lockedContainer: {
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+  },
+  headerTitle: {
+    fontFamily: fontFamily.bold,
+    fontSize: 28,
+    lineHeight: 34,
+  },
+  refreshIcon: {
+    fontSize: 22,
+  },
+  segmentBar: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+  },
+  segmentBtn: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing['3xl'],
-    gap: spacing.lg,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
   },
-  lockEmoji: {
-    fontSize: 64,
+  segmentBtnActive: {
+    borderBottomWidth: 2,
   },
-  lockedTitle: {
-    ...typography.headingLg,
-    color: colors.gray[900],
-    textAlign: 'center',
-  },
-  lockedBody: {
+  segmentLabel: {
     ...typography.bodyMd,
-    color: colors.gray[500],
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  progressContainer: {
-    width: '100%',
-    gap: spacing.sm,
-    marginTop: spacing.sm,
-  },
-  progressTrack: {
-    height: 8,
-    backgroundColor: colors.gray[200],
-    borderRadius: borderRadius.full,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: colors.primary[500],
-    borderRadius: borderRadius.full,
-  },
-  progressLabel: {
-    ...typography.bodySm,
-    color: colors.gray[500],
-    textAlign: 'center',
-  },
-  diaryLink: {
-    marginTop: spacing.sm,
-  },
-  diaryLinkText: {
-    ...typography.bodyMd,
-    color: colors.primary[500],
-    fontWeight: '600',
   },
   listHeader: {
-    gap: spacing.sm,
     paddingBottom: spacing.sm,
   },
-  profilesLink: {
-    paddingHorizontal: spacing.lg,
-  },
-  profilesLinkText: {
-    ...typography.bodyMd,
-    color: colors.primary[500],
-    fontWeight: '600',
-  },
   listContent: {
-    paddingBottom: spacing['3xl'],
+    paddingBottom: spacing['2xl'],
   },
   section: {
     paddingHorizontal: spacing.lg,
@@ -298,7 +321,6 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     ...typography.headingMd,
-    color: colors.gray[900],
   },
   sectionLoader: {
     marginVertical: spacing.lg,
@@ -309,13 +331,8 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     ...typography.bodyMd,
-    color: colors.gray[400],
   },
   cardSeparator: {
     height: spacing.sm,
-  },
-  refreshIcon: {
-    fontSize: 22,
-    color: colors.gray[700],
   },
 });

@@ -1,13 +1,13 @@
 import React, { memo } from 'react';
 import {
+  Platform,
   Pressable,
-  StyleSheet,
   Text,
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { colors } from '@/theme/colors';
-import { typography } from '@/theme/typography';
+import { useTheme } from '@/theme/ThemeContext';
+import { typography, fontFamily } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 
 interface HeaderBarProps {
@@ -25,81 +25,84 @@ export const HeaderBar = memo(function HeaderBar({
   showBack = false,
   testID,
 }: HeaderBarProps) {
+  const { colors } = useTheme();
   const router = useRouter();
 
   return (
-    <View style={styles.container} testID={testID ?? 'header-bar'}>
-      <View style={styles.leftSection}>
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: spacing.lg,
+        paddingVertical: spacing.md,
+        paddingTop: Platform.OS === 'ios' ? spacing.sm : spacing.md,
+        backgroundColor: colors.background,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border,
+      }}
+      testID={testID ?? 'header-bar'}
+    >
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          flex: 1,
+          gap: spacing.sm,
+        }}
+      >
         {showBack && (
           <Pressable
             onPress={() => router.back()}
-            style={styles.backButton}
+            style={{ padding: spacing.xs, marginRight: spacing.xs }}
             hitSlop={8}
             accessibilityRole="button"
             accessibilityLabel="Go back"
             testID="header-back-button"
           >
-            <Text style={styles.backArrow}>{'←'}</Text>
+            <Text
+              style={{
+                fontSize: 28,
+                lineHeight: 30,
+                color: colors.accent,
+              }}
+            >
+              {'‹'}
+            </Text>
           </Pressable>
         )}
-        <View style={styles.titleContainer}>
-          <Text style={styles.title} numberOfLines={1} testID="header-title">
+        <View style={{ flex: 1 }}>
+          <Text
+            style={{
+              ...typography.headingMd,
+              fontFamily: fontFamily.semibold,
+              color: colors.textPrimary,
+            }}
+            numberOfLines={1}
+            testID="header-title"
+          >
             {title}
           </Text>
           {subtitle ? (
-            <Text style={styles.subtitle} numberOfLines={1} testID="header-subtitle">
+            <Text
+              style={{
+                ...typography.bodySm,
+                color: colors.textSecondary,
+                marginTop: 2,
+              }}
+              numberOfLines={1}
+              testID="header-subtitle"
+            >
               {subtitle}
             </Text>
           ) : null}
         </View>
       </View>
       {rightAction ? (
-        <View style={styles.rightSection} testID="header-right-action">
+        <View style={{ marginLeft: spacing.md }} testID="header-right-action">
           {rightAction}
         </View>
       ) : null}
     </View>
   );
-});
-
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray[100],
-  },
-  leftSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    gap: spacing.sm,
-  },
-  backButton: {
-    padding: spacing.xs,
-    marginRight: spacing.xs,
-  },
-  backArrow: {
-    fontSize: 22,
-    color: colors.gray[700],
-  },
-  titleContainer: {
-    flex: 1,
-  },
-  title: {
-    ...typography.headingLg,
-    color: colors.gray[900],
-  },
-  subtitle: {
-    ...typography.bodySm,
-    color: colors.gray[500],
-    marginTop: 2,
-  },
-  rightSection: {
-    marginLeft: spacing.md,
-  },
 });

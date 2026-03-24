@@ -1,7 +1,7 @@
 import React, { memo, useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 import type { GeneratedPost } from '@/stores/contentStore';
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeContext';
 import { typography } from '@/theme/typography';
 import { borderRadius, spacing } from '@/theme/spacing';
 import { Button } from '@/components/ui/Button';
@@ -27,6 +27,7 @@ export const PostEditor = memo(function PostEditor({
   onSave,
   testID,
 }: PostEditorProps) {
+  const { colors } = useTheme();
   const [text, setText] = useState(post.body_text);
   const limit = PLATFORM_CHAR_LIMITS[platform];
   const count = text.length;
@@ -35,19 +36,35 @@ export const PostEditor = memo(function PostEditor({
   return (
     <View style={styles.container} testID={testID ?? 'post-editor'}>
       <TextInput
-        style={[styles.input, isOverLimit && styles.inputError]}
+        style={[
+          styles.input,
+          {
+            ...typography.bodyLg,
+            color: colors.textPrimary,
+            backgroundColor: colors.background,
+            borderColor: isOverLimit ? colors.error : colors.border,
+          },
+        ]}
         value={text}
         onChangeText={setText}
         multiline
         autoFocus
-        placeholderTextColor={colors.gray[400]}
+        placeholderTextColor={colors.textMuted}
         placeholder="Edit your post..."
         testID="post-editor-input"
         accessibilityLabel="Post content editor"
       />
-      <View style={styles.footer}>
+      <View
+        style={[
+          styles.footer,
+          { backgroundColor: colors.surface, borderTopColor: colors.border },
+        ]}
+      >
         <Text
-          style={[styles.counter, isOverLimit && styles.counterError]}
+          style={[
+            styles.counter,
+            { color: isOverLimit ? colors.error : colors.textMuted },
+          ]}
           testID="post-editor-counter"
         >
           {count} / {limit}
@@ -72,29 +89,22 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    ...typography.bodyLg,
-    color: colors.gray[900],
     borderWidth: 1.5,
-    borderColor: colors.gray[200],
     borderRadius: borderRadius.md,
     padding: spacing.md,
     textAlignVertical: 'top',
     minHeight: 200,
   },
-  inputError: {
-    borderColor: colors.error,
-  },
   footer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderTopWidth: 1,
+    borderRadius: borderRadius.md,
   },
   counter: {
-    ...typography.bodySm,
-    color: colors.gray[500],
-  },
-  counterError: {
-    color: colors.error,
-    fontWeight: '600',
+    ...typography.caption,
   },
 });

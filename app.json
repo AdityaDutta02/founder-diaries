@@ -12,13 +12,19 @@
       "resizeMode": "contain",
       "backgroundColor": "#6366F1"
     },
+    "notifications": {
+      "icon": "./assets/icon.png",
+      "color": "#6366f1",
+      "sounds": []
+    },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.founderdiaries.app",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Founder Diaries needs microphone access to record voice diary entries.",
         "NSCameraUsageDescription": "Founder Diaries needs camera access to add photos to diary entries.",
-        "NSPhotoLibraryUsageDescription": "Founder Diaries needs photo library access to attach images to diary entries."
+        "NSPhotoLibraryUsageDescription": "Founder Diaries needs photo library access to attach images to diary entries.",
+        "NSUserNotificationsUsageDescription": "We send friendly reminders to write diary entries and occasional questions to help personalise your content."
       }
     },
     "android": {
@@ -32,7 +38,10 @@
       "permissions": [
         "RECORD_AUDIO",
         "CAMERA",
-        "READ_EXTERNAL_STORAGE"
+        "READ_EXTERNAL_STORAGE",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE",
+        "SCHEDULE_EXACT_ALARM"
       ]
     },
     "web": {
@@ -57,7 +66,14 @@
           "cameraPermission": "Allow Founder Diaries to use your camera for diary entries."
         }
       ],
-      "expo-background-fetch"
+      "expo-background-fetch",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#6366f1"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

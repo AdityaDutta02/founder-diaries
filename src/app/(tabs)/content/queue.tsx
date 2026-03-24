@@ -7,7 +7,7 @@ import {
   type GeneratedPost,
   type PlatformFilter,
 } from '@/stores/contentStore';
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeContext';
 import { typography } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { PostCard } from '@/components/content/PostCard';
@@ -32,6 +32,7 @@ const SECTION_CONFIG: { title: string; status: QueueStatus }[] = [
 
 export default function ContentQueue() {
   const router = useRouter();
+  const { colors } = useTheme();
   const posts = useContentStore((state) => state.posts);
   const platformFilter = useContentStore((state) => state.platformFilter);
   const setPlatformFilter = useContentStore((state) => state.setPlatformFilter);
@@ -82,10 +83,10 @@ export default function ContentQueue() {
   const renderSectionHeader = useCallback(
     ({ section }: { section: QueueSection }) => (
       <View style={styles.sectionHeader} testID={`queue-section-${section.status}`}>
-        <Text style={styles.sectionTitle}>{section.title}</Text>
+        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>{section.title}</Text>
       </View>
     ),
-    [],
+    [colors.textSecondary],
   );
 
   const keyExtractor = useCallback((item: GeneratedPost) => item.id, []);
@@ -106,14 +107,18 @@ export default function ContentQueue() {
   const ListEmptyComponent = useMemo(
     () => (
       <View style={styles.emptyContainer} testID="queue-empty">
-        <Text style={styles.emptyText}>No posts in your queue.</Text>
+        <Text style={[styles.emptyText, { color: colors.textMuted }]}>No posts in your queue.</Text>
       </View>
     ),
-    [],
+    [colors.textMuted],
   );
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['bottom']} testID="content-queue">
+    <SafeAreaView
+      style={[styles.safeArea, { backgroundColor: colors.background }]}
+      edges={['bottom']}
+      testID="content-queue"
+    >
       <SectionList
         sections={sections}
         renderItem={renderItem}
@@ -133,7 +138,6 @@ export default function ContentQueue() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.gray[50],
   },
   listContent: {
     paddingBottom: spacing['3xl'],
@@ -149,7 +153,6 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     ...typography.headingSm,
-    color: colors.gray[700],
   },
   cardWrapper: {
     paddingHorizontal: spacing.lg,
@@ -161,6 +164,5 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     ...typography.bodyMd,
-    color: colors.gray[500],
   },
 });

@@ -11,14 +11,15 @@ import {
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ExpoImagePicker from 'expo-image-picker';
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeContext';
 import { typography } from '@/theme/typography';
-import { borderRadius, shadows, spacing } from '@/theme/spacing';
+import { borderRadius, spacing } from '@/theme/spacing';
 import { Button } from '@/components/ui/Button';
 import { useUIStore } from '@/stores/uiStore';
 import { logger } from '@/lib/logger';
 
 export default function ImagePickerModal() {
+  const { colors } = useTheme();
   const router = useRouter();
   const setPendingImageUris = useUIStore((s) => s.setPendingImageUris);
 
@@ -95,48 +96,99 @@ export default function ImagePickerModal() {
   }, [router]);
 
   return (
-    <SafeAreaView style={styles.safeArea} testID="image-picker-modal">
-      {/* Close button */}
-      <Pressable
-        style={styles.closeButton}
-        onPress={handleClose}
-        hitSlop={8}
-        accessibilityRole="button"
-        accessibilityLabel="Close image picker"
-        testID="close-image-picker-button"
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: colors.background }}
+      testID="image-picker-modal"
+    >
+      {/* Modal header */}
+      <View
+        style={[
+          styles.header,
+          { backgroundColor: colors.surface, borderBottomColor: colors.border },
+        ]}
       >
-        <Text style={styles.closeIcon}>✕</Text>
-      </Pressable>
-
-      <Text style={styles.heading}>Add Photos</Text>
+        <Pressable
+          onPress={handleClose}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Close image picker"
+          testID="close-image-picker-button"
+        >
+          <Text style={[typography.bodyMd, { color: colors.textSecondary }]}>Cancel</Text>
+        </Pressable>
+        <Text style={[typography.headingSm, { color: colors.textPrimary }]}>Add Photos</Text>
+        <Pressable
+          onPress={handleDone}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Done"
+          testID="done-header-button"
+        >
+          <Text
+            style={[
+              typography.bodyMd,
+              {
+                color:
+                  selectedUris.length > 0 ? colors.accent : colors.textMuted,
+                fontWeight: '600',
+              },
+            ]}
+          >
+            Done{selectedUris.length > 0 ? ` (${selectedUris.length})` : ''}
+          </Text>
+        </Pressable>
+      </View>
 
       {/* Action buttons */}
-      <View style={styles.actionButtons}>
+      <View style={[styles.actionButtons, { paddingHorizontal: spacing.lg }]}>
         <Pressable
-          style={({ pressed }) => [styles.actionCard, pressed && styles.actionCardPressed]}
+          style={({ pressed }) => [
+            styles.actionCard,
+            {
+              backgroundColor: pressed ? colors.surfacePressed : colors.surface,
+              borderColor: pressed ? colors.accent : colors.border,
+              borderRadius: borderRadius.lg,
+            },
+          ]}
           onPress={handleTakePhoto}
           accessibilityRole="button"
           testID="take-photo-button"
         >
           <Text style={styles.actionIcon}>📷</Text>
-          <Text style={styles.actionLabel}>Take Photo</Text>
+          <Text style={[typography.bodyMd, { color: colors.textSecondary, textAlign: 'center' }]}>
+            Take Photo
+          </Text>
         </Pressable>
 
         <Pressable
-          style={({ pressed }) => [styles.actionCard, pressed && styles.actionCardPressed]}
+          style={({ pressed }) => [
+            styles.actionCard,
+            {
+              backgroundColor: pressed ? colors.surfacePressed : colors.surface,
+              borderColor: pressed ? colors.accent : colors.border,
+              borderRadius: borderRadius.lg,
+            },
+          ]}
           onPress={handleChooseFromGallery}
           accessibilityRole="button"
           testID="choose-gallery-button"
         >
           <Text style={styles.actionIcon}>🖼️</Text>
-          <Text style={styles.actionLabel}>Choose from Gallery</Text>
+          <Text style={[typography.bodyMd, { color: colors.textSecondary, textAlign: 'center' }]}>
+            Choose from Gallery
+          </Text>
         </Pressable>
       </View>
 
       {/* Selected images grid */}
       {selectedUris.length > 0 && (
         <View style={styles.gridSection} testID="selected-images-grid">
-          <Text style={styles.sectionLabel}>
+          <Text
+            style={[
+              typography.headingSm,
+              { color: colors.textPrimary, marginBottom: spacing.md },
+            ]}
+          >
             Selected ({selectedUris.length})
           </Text>
           <FlatList
@@ -146,7 +198,13 @@ export default function ImagePickerModal() {
             scrollEnabled={false}
             contentContainerStyle={styles.grid}
             renderItem={({ item: uri }) => (
-              <View style={styles.imageContainer} testID={`selected-image-${uri}`}>
+              <View
+                style={[
+                  styles.imageContainer,
+                  { borderRadius: borderRadius.md, borderColor: colors.border },
+                ]}
+                testID={`selected-image-${uri}`}
+              >
                 <Image
                   source={{ uri }}
                   style={styles.thumbnail}
@@ -160,7 +218,7 @@ export default function ImagePickerModal() {
                   accessibilityLabel="Remove image"
                   testID={`remove-image-${uri}`}
                 >
-                  <Text style={styles.removeIcon}>✕</Text>
+                  <Text style={[styles.removeIcon, { color: colors.white }]}>✕</Text>
                 </Pressable>
               </View>
             )}
@@ -168,8 +226,13 @@ export default function ImagePickerModal() {
         </View>
       )}
 
-      {/* Done button */}
-      <View style={styles.footer}>
+      {/* Footer done button */}
+      <View
+        style={[
+          styles.footer,
+          { borderTopColor: colors.border, backgroundColor: colors.background },
+        ]}
+      >
         <Button
           label={selectedUris.length > 0 ? `Done (${selectedUris.length})` : 'Done'}
           variant="primary"
@@ -183,68 +246,34 @@ export default function ImagePickerModal() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.white,
-  },
-  closeButton: {
-    position: 'absolute',
-    top: spacing['3xl'],
-    left: spacing.lg,
-    zIndex: 10,
-    padding: spacing.sm,
-  },
-  closeIcon: {
-    fontSize: 20,
-    color: colors.gray[700],
-  },
-  heading: {
-    ...typography.headingLg,
-    color: colors.gray[900],
-    textAlign: 'center',
-    marginTop: spacing['3xl'],
-    marginBottom: spacing['2xl'],
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   actionButtons: {
     flexDirection: 'row',
-    paddingHorizontal: spacing.lg,
     gap: spacing.md,
+    marginTop: spacing['2xl'],
   },
   actionCard: {
     flex: 1,
-    backgroundColor: colors.gray[50],
-    borderRadius: borderRadius.lg,
     borderWidth: 1.5,
-    borderColor: colors.gray[200],
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: spacing['3xl'],
     gap: spacing.sm,
-    ...shadows.sm,
-  },
-  actionCardPressed: {
-    opacity: 0.8,
-    backgroundColor: colors.primary[50],
-    borderColor: colors.primary[200],
   },
   actionIcon: {
     fontSize: 36,
-  },
-  actionLabel: {
-    ...typography.bodyMd,
-    color: colors.gray[700],
-    fontWeight: '500',
-    textAlign: 'center',
   },
   gridSection: {
     flex: 1,
     paddingHorizontal: spacing.lg,
     marginTop: spacing.xl,
-  },
-  sectionLabel: {
-    ...typography.headingSm,
-    color: colors.gray[700],
-    marginBottom: spacing.md,
   },
   grid: {
     gap: spacing.sm,
@@ -253,10 +282,10 @@ const styles = StyleSheet.create({
     flex: 1,
     margin: spacing.xs / 2,
     aspectRatio: 1,
-    borderRadius: borderRadius.md,
     overflow: 'hidden',
     position: 'relative',
     maxWidth: '32%',
+    borderWidth: 1,
   },
   thumbnail: {
     width: '100%',
@@ -269,17 +298,17 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(0,0,0,0.55)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   removeIcon: {
     fontSize: 11,
-    color: colors.white,
     fontWeight: '600',
   },
   footer: {
     padding: spacing.lg,
     paddingBottom: spacing['2xl'],
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
 });

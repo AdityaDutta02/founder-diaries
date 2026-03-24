@@ -6,6 +6,8 @@ export default function SettingsLayout() {
       <Stack.Screen name="index" />
       <Stack.Screen name="platforms" />
       <Stack.Screen name="account" />
+      <Stack.Screen name="export" />
+      <Stack.Screen name="notifications" />
     </Stack>
   );
 }

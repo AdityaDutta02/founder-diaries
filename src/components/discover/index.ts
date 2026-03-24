@@ -6,3 +6,6 @@ export { WritingProfileCard } from './WritingProfileCard';
 export { PlatformFilter } from './PlatformFilter';
 export type { DiscoverPlatformFilter } from './PlatformFilter';
 export { PlatformBadge } from './PlatformBadge';
+export { DiscoverLockedView } from './DiscoverLockedView';
+export { DiscoverVoiceTab } from './DiscoverVoiceTab';
+export type { WritingProfile } from './DiscoverVoiceTab';

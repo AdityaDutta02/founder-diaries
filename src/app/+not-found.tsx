@@ -1,22 +1,27 @@
 import { Link, Stack } from 'expo-router';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeContext';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
 
 export default function NotFoundScreen() {
+  const { colors } = useTheme();
+
   return (
     <>
       <Stack.Screen options={{ title: 'Not Found' }} />
-      <View style={styles.container} testID="not-found-screen">
+      <View
+        style={[styles.container, { backgroundColor: colors.background }]}
+        testID="not-found-screen"
+      >
         <Text style={styles.emoji}>🔍</Text>
-        <Text style={styles.title}>Page not found</Text>
-        <Text style={styles.message}>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>Page not found</Text>
+        <Text style={[styles.message, { color: colors.textSecondary }]}>
           The screen you are looking for does not exist.
         </Text>
         <Link href="/(tabs)" style={styles.link}>
-          <Text style={styles.linkText}>Go to home</Text>
+          <Text style={[styles.linkText, { color: colors.accent }]}>Go to home</Text>
         </Link>
       </View>
     </>
@@ -28,7 +33,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.white,
     padding: spacing['2xl'],
     gap: spacing.md,
   },
@@ -37,12 +41,10 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.headingLg,
-    color: colors.gray[900],
     textAlign: 'center',
   },
   message: {
     ...typography.bodyMd,
-    color: colors.gray[500],
     textAlign: 'center',
   },
   link: {
@@ -50,7 +52,6 @@ const styles = StyleSheet.create({
   },
   linkText: {
     ...typography.bodyMd,
-    color: colors.primary[500],
     fontWeight: '600',
   },
 });

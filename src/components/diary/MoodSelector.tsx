@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { colors } from '@/theme/colors';
+import { Pressable, ScrollView, Text } from 'react-native';
+import { useTheme } from '@/theme/ThemeContext';
 import { typography } from '@/theme/typography';
 import { spacing, borderRadius } from '@/theme/spacing';
 
@@ -29,11 +29,18 @@ export const MoodSelector = memo(function MoodSelector({
   onSelect,
   testID,
 }: MoodSelectorProps) {
+  const { colors } = useTheme();
+
   return (
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.scrollContent}
+      contentContainerStyle={{
+        flexDirection: 'row',
+        gap: spacing.sm,
+        paddingHorizontal: spacing.xs,
+        paddingVertical: spacing.sm,
+      }}
       testID={testID ?? 'mood-selector'}
     >
       {MOODS.map((mood) => {
@@ -42,18 +49,29 @@ export const MoodSelector = memo(function MoodSelector({
           <Pressable
             key={mood.value}
             onPress={() => onSelect(mood.value)}
-            style={[styles.moodItem, isSelected && styles.moodItemSelected]}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: spacing.xs,
+              paddingHorizontal: spacing.md,
+              paddingVertical: spacing.sm,
+              borderRadius: borderRadius.full,
+              backgroundColor: isSelected ? colors.accentLight : colors.surface2,
+              borderWidth: 1,
+              borderColor: isSelected ? colors.accent : colors.border,
+            }}
             accessibilityRole="button"
             accessibilityLabel={`Select mood: ${mood.label}`}
             accessibilityState={{ selected: isSelected }}
             testID={`mood-option-${mood.value}`}
           >
-            <View
-              style={[styles.emojiCircle, isSelected && styles.emojiCircleSelected]}
+            <Text style={{ fontSize: 16 }}>{mood.emoji}</Text>
+            <Text
+              style={{
+                ...typography.label,
+                color: isSelected ? colors.accent : colors.textSecondary,
+              }}
             >
-              <Text style={styles.emoji}>{mood.emoji}</Text>
-            </View>
-            <Text style={[styles.label, isSelected && styles.labelSelected]}>
               {mood.label}
             </Text>
           </Pressable>
@@ -61,42 +79,4 @@ export const MoodSelector = memo(function MoodSelector({
       })}
     </ScrollView>
   );
-});
-
-const styles = StyleSheet.create({
-  scrollContent: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    paddingHorizontal: spacing.xs,
-    paddingVertical: spacing.sm,
-  },
-  moodItem: {
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  moodItemSelected: {},
-  emojiCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.gray[100],
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  emojiCircleSelected: {
-    backgroundColor: colors.primary[100],
-    borderColor: colors.primary[500],
-  },
-  emoji: {
-    fontSize: 20,
-  },
-  label: {
-    ...typography.label,
-    color: colors.gray[500],
-  },
-  labelSelected: {
-    color: colors.primary[500],
-  },
 });

@@ -9,9 +9,9 @@ import {
   View,
 } from 'react-native';
 import { Badge, Button, Input, StepDots } from '@/components/ui';
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeContext';
 import { borderRadius, spacing } from '@/theme/spacing';
-import { typography } from '@/theme/typography';
+import { fontFamily, typography } from '@/theme/typography';
 
 const INDUSTRIES = [
   'SaaS',
@@ -27,6 +27,8 @@ const INDUSTRIES = [
 type Industry = (typeof INDUSTRIES)[number];
 
 export default function IndustrySelectScreen() {
+  const { colors } = useTheme();
+
   const [selectedIndustry, setSelectedIndustry] = useState<Industry | null>(null);
   const [nicheInput, setNicheInput] = useState('');
   const [keywords, setKeywords] = useState<string[]>([]);
@@ -54,7 +56,10 @@ export default function IndustrySelectScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} testID="industry-select-screen">
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: colors.background }}
+      testID="industry-select-screen"
+    >
       <ScrollView
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
@@ -68,11 +73,19 @@ export default function IndustrySelectScreen() {
           accessibilityLabel="Go back"
           testID="back-button"
         >
-          <Text style={styles.backText}>← Back</Text>
+          <Text style={[typography.bodyMd, { color: colors.accent, fontFamily: fontFamily.medium }]}>
+            ← Back
+          </Text>
         </Pressable>
 
-        <Text style={styles.heading}>What's your industry?</Text>
-        <Text style={styles.subtitle}>This helps us find creators in your space</Text>
+        <Text style={[typography.headingXl, { color: colors.textPrimary }]}>
+          {"What's your industry?"}
+        </Text>
+        <Text
+          style={[typography.bodyLg, { color: colors.textSecondary, marginTop: -spacing.md }]}
+        >
+          This helps us find creators in your space
+        </Text>
 
         {/* Industry grid */}
         <View style={styles.grid} testID="industry-grid">
@@ -82,13 +95,32 @@ export default function IndustrySelectScreen() {
               <Pressable
                 key={industry}
                 onPress={() => setSelectedIndustry(industry)}
-                style={[styles.card, isSelected && styles.cardSelected]}
+                style={[
+                  styles.card,
+                  {
+                    borderColor: isSelected ? colors.accent : colors.border,
+                    backgroundColor: isSelected ? colors.accentLight : colors.surface,
+                    borderRadius: borderRadius.lg,
+                  },
+                ]}
                 accessibilityRole="radio"
                 accessibilityState={{ checked: isSelected }}
                 accessibilityLabel={industry}
                 testID={`industry-card-${industry}`}
               >
-                <Text style={[styles.cardLabel, isSelected && styles.cardLabelSelected]}>
+                {isSelected && (
+                  <Text style={[styles.checkmark, { color: colors.accent }]}>✓ </Text>
+                )}
+                <Text
+                  style={[
+                    typography.bodySm,
+                    {
+                      fontFamily: fontFamily.semibold,
+                      color: isSelected ? colors.accent : colors.textSecondary,
+                      textAlign: 'center',
+                    },
+                  ]}
+                >
                   {industry}
                 </Text>
               </Pressable>
@@ -98,7 +130,9 @@ export default function IndustrySelectScreen() {
 
         {/* Niche keywords */}
         <View style={styles.nicheSection} testID="niche-section">
-          <Text style={styles.nicheHeading}>Add niche keywords</Text>
+          <Text style={[typography.headingSm, { color: colors.textPrimary }]}>
+            Add niche keywords
+          </Text>
           <Input
             placeholder="e.g. bootstrapped, indie hacker"
             value={nicheInput}
@@ -138,34 +172,15 @@ export default function IndustrySelectScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.white,
-  },
   scroll: {
     flexGrow: 1,
     paddingHorizontal: spacing['2xl'],
     paddingTop: spacing.lg,
-    paddingBottom: spacing['3xl'],
     gap: spacing.xl,
   },
   backButton: {
     alignSelf: 'flex-start',
     paddingVertical: spacing.xs,
-  },
-  backText: {
-    ...typography.bodyMd,
-    color: colors.primary[500],
-    fontWeight: '500',
-  },
-  heading: {
-    ...typography.headingXl,
-    color: colors.gray[900],
-  },
-  subtitle: {
-    ...typography.bodyLg,
-    color: colors.gray[500],
-    marginTop: -spacing.md,
   },
   grid: {
     flexDirection: 'row',
@@ -175,34 +190,19 @@ const styles = StyleSheet.create({
   card: {
     width: '46%',
     borderWidth: 1.5,
-    borderColor: colors.gray[200],
-    borderRadius: borderRadius.lg,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
     minHeight: 56,
-    backgroundColor: colors.white,
   },
-  cardSelected: {
-    backgroundColor: colors.primary[100],
-    borderColor: colors.primary[500],
-  },
-  cardLabel: {
-    ...typography.bodySm,
-    fontWeight: '600',
-    color: colors.gray[700],
-    textAlign: 'center',
-  },
-  cardLabelSelected: {
-    color: colors.primary[600],
+  checkmark: {
+    fontSize: 13,
+    fontWeight: '700',
   },
   nicheSection: {
     gap: spacing.md,
-  },
-  nicheHeading: {
-    ...typography.headingSm,
-    color: colors.gray[700],
   },
   chipsRow: {
     flexDirection: 'row',

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeContext';
 import { typography } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { HeaderBar } from '@/components/layout/HeaderBar';
@@ -12,10 +12,11 @@ import { useAuthStore } from '@/stores/authStore';
 import type { ContentWritingProfile } from '@/types/database';
 
 export default function WritingProfilesScreen() {
+  const { colors } = useTheme();
   const session = useAuthStore((s) => s.session);
   const [profiles, setProfiles] = useState<ContentWritingProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [refreshingPlatform, setRefreshingPlatform] = useState<string | null>(null);
+  const [, setRefreshingPlatform] = useState<string | null>(null);
 
   const fetchProfiles = useCallback(async () => {
     if (!session?.user.id) return;
@@ -78,12 +79,15 @@ export default function WritingProfilesScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.safeArea} testID="writing-profiles-screen">
+    <SafeAreaView
+      style={[styles.safeArea, { backgroundColor: colors.background }]}
+      testID="writing-profiles-screen"
+    >
       <HeaderBar title="Writing Profiles" showBack />
 
       {isLoading ? (
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color={colors.primary[500]} />
+          <ActivityIndicator size="large" color={colors.accent} />
         </View>
       ) : (
         <FlatList
@@ -93,7 +97,7 @@ export default function WritingProfilesScreen() {
           ItemSeparatorComponent={() => <View style={styles.separator} />}
           ListEmptyComponent={
             <View style={styles.emptyState} testID="profiles-empty-state">
-              <Text style={styles.emptyText}>
+              <Text style={[styles.emptyText, { color: colors.textMuted }]}>
                 No writing profiles generated yet. Enable platforms and record diary entries to get
                 started.
               </Text>
@@ -115,7 +119,6 @@ export default function WritingProfilesScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.gray[50],
   },
   centered: {
     flex: 1,
@@ -124,7 +127,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: spacing.lg,
-    paddingBottom: spacing['3xl'],
+    paddingBottom: 24,
   },
   separator: {
     height: spacing.md,
@@ -136,7 +139,6 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     ...typography.bodyMd,
-    color: colors.gray[400],
     textAlign: 'center',
     lineHeight: 22,
   },

@@ -1,8 +1,8 @@
 import React, { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeContext';
 import { typography } from '@/theme/typography';
-import { borderRadius, shadows, spacing } from '@/theme/spacing';
+import { borderRadius, spacing } from '@/theme/spacing';
 import type { Platform } from '@/types/database';
 import { PlatformBadge } from './PlatformBadge';
 
@@ -34,6 +34,7 @@ export const CreatorCard = memo(function CreatorCard({
   onPress,
   testID,
 }: CreatorCardProps) {
+  const { colors } = useTheme();
   const displayName = creator.creator_name ?? creator.creator_handle;
   const followerText = formatFollowerCount(creator.follower_count);
   const relevancePct =
@@ -43,7 +44,14 @@ export const CreatorCard = memo(function CreatorCard({
 
   return (
     <Pressable
-      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+      style={({ pressed }) => [
+        styles.card,
+        {
+          backgroundColor: colors.surface,
+          borderColor: colors.border,
+        },
+        pressed && { opacity: 0.85 },
+      ]}
       onPress={() => onPress(creator.id)}
       accessibilityRole="button"
       accessibilityLabel={`View ${displayName}'s profile`}
@@ -52,8 +60,11 @@ export const CreatorCard = memo(function CreatorCard({
       <View style={styles.row}>
         {/* Avatar */}
         <View style={styles.avatarContainer}>
-          <View style={styles.avatar} testID="creator-avatar">
-            <Text style={styles.avatarInitial}>
+          <View
+            style={[styles.avatar, { backgroundColor: colors.surface2 }]}
+            testID="creator-avatar"
+          >
+            <Text style={[styles.avatarInitial, { color: colors.textSecondary }]}>
               {displayName.charAt(0).toUpperCase()}
             </Text>
           </View>
@@ -64,28 +75,47 @@ export const CreatorCard = memo(function CreatorCard({
 
         {/* Center info */}
         <View style={styles.centerInfo}>
-          <Text style={styles.name} numberOfLines={1} testID="creator-name">
+          <Text
+            style={[styles.name, { color: colors.textPrimary }]}
+            numberOfLines={1}
+            testID="creator-name"
+          >
             {displayName}
           </Text>
-          <Text style={styles.handle} numberOfLines={1} testID="creator-handle">
+          <Text
+            style={[styles.handle, { color: colors.textSecondary }]}
+            numberOfLines={1}
+            testID="creator-handle"
+          >
             @{creator.creator_handle}
             {followerText ? (
-              <Text style={styles.followers}>{`  •  ${followerText}`}</Text>
+              <Text style={[styles.followers, { color: colors.textMuted }]}>
+                {`  \u2022  ${followerText}`}
+              </Text>
             ) : null}
           </Text>
         </View>
 
         {/* Relevance badge */}
         {relevancePct !== null && (
-          <View style={styles.relevanceBadge} testID="creator-relevance">
-            <Text style={styles.relevanceText}>{relevancePct}</Text>
+          <View
+            style={[styles.relevanceBadge, { backgroundColor: colors.accentLight }]}
+            testID="creator-relevance"
+          >
+            <Text style={[styles.relevanceText, { color: colors.accent }]}>
+              {relevancePct}
+            </Text>
           </View>
         )}
       </View>
 
       {/* Bio */}
       {creator.bio ? (
-        <Text style={styles.bio} numberOfLines={1} testID="creator-bio">
+        <Text
+          style={[styles.bio, { color: colors.textSecondary }]}
+          numberOfLines={2}
+          testID="creator-bio"
+        >
           {creator.bio}
         </Text>
       ) : null}
@@ -95,16 +125,10 @@ export const CreatorCard = memo(function CreatorCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.white,
     borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: colors.gray[200],
     padding: spacing.md,
     gap: spacing.sm,
-    ...shadows.sm,
-  },
-  pressed: {
-    opacity: 0.85,
   },
   row: {
     flexDirection: 'row',
@@ -120,13 +144,11 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: colors.primary[100],
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarInitial: {
     ...typography.headingSm,
-    color: colors.primary[600],
   },
   platformBadgeOverlay: {
     position: 'absolute',
@@ -139,29 +161,22 @@ const styles = StyleSheet.create({
   },
   name: {
     ...typography.headingSm,
-    color: colors.gray[900],
   },
   handle: {
     ...typography.bodySm,
-    color: colors.gray[500],
   },
   followers: {
     ...typography.bodySm,
-    color: colors.gray[400],
   },
   relevanceBadge: {
-    backgroundColor: colors.primary[100],
     borderRadius: borderRadius.full,
     paddingVertical: spacing.xs,
     paddingHorizontal: spacing.sm,
   },
   relevanceText: {
     ...typography.bodySm,
-    color: colors.primary[600],
-    fontWeight: '600',
   },
   bio: {
-    ...typography.bodyMd,
-    color: colors.gray[500],
+    ...typography.bodySm,
   },
 });

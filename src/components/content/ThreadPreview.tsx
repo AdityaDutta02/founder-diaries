@@ -1,8 +1,8 @@
 import React, { memo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { ThreadTweet } from '@/stores/contentStore';
-import { colors } from '@/theme/colors';
-import { typography } from '@/theme/typography';
+import { useTheme } from '@/theme/ThemeContext';
+import { typography, fontFamily } from '@/theme/typography';
 import { borderRadius, spacing } from '@/theme/spacing';
 
 const TWEET_CHAR_LIMIT = 280;
@@ -18,6 +18,7 @@ interface TweetItemProps {
 }
 
 function TweetItem({ tweet, isLast }: TweetItemProps) {
+  const { colors } = useTheme();
   const charCount = tweet.text.length;
   const isOverLimit = charCount > TWEET_CHAR_LIMIT;
 
@@ -25,27 +26,48 @@ function TweetItem({ tweet, isLast }: TweetItemProps) {
     <View style={styles.tweetRow} testID={`tweet-row-${tweet.order}`}>
       {/* Left side: order number + connecting line */}
       <View style={styles.leftColumn}>
-        <View style={styles.orderBadge}>
-          <Text style={styles.orderText}>{tweet.order}</Text>
+        <View
+          style={[styles.orderBadge, { backgroundColor: colors.surface2 }]}
+        >
+          <Text style={[styles.orderText, { color: colors.textPrimary }]}>
+            {tweet.order}
+          </Text>
         </View>
-        {!isLast ? <View style={styles.connectingLine} /> : null}
+        {!isLast ? (
+          <View style={[styles.connectingLine, { backgroundColor: colors.border }]} />
+        ) : null}
       </View>
 
       {/* Tweet card */}
       <View
-        style={[styles.tweetCard, isOverLimit && styles.tweetCardError]}
+        style={[
+          styles.tweetCard,
+          {
+            backgroundColor: colors.surface,
+            borderColor: isOverLimit ? colors.error : colors.border,
+          },
+        ]}
         testID={`tweet-card-${tweet.order}`}
       >
         <View style={styles.tweetHeader}>
           <View />
           <Text
-            style={[styles.charCount, isOverLimit && styles.charCountError]}
+            style={[
+              styles.charCount,
+              {
+                color: isOverLimit ? colors.error : colors.textMuted,
+                fontFamily: isOverLimit ? fontFamily.semibold : fontFamily.regular,
+              },
+            ]}
             testID={`tweet-char-count-${tweet.order}`}
           >
             {charCount}/{TWEET_CHAR_LIMIT}
           </Text>
         </View>
-        <Text style={styles.tweetText} testID={`tweet-text-${tweet.order}`}>
+        <Text
+          style={[styles.tweetText, { color: colors.textPrimary }]}
+          testID={`tweet-text-${tweet.order}`}
+        >
           {tweet.text}
         </Text>
       </View>
@@ -89,35 +111,26 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.gray[100],
     alignItems: 'center',
     justifyContent: 'center',
   },
   orderText: {
     ...typography.label,
-    color: colors.gray[500],
-    fontWeight: '600',
     fontSize: 10,
   },
   connectingLine: {
     flex: 1,
     width: 2,
-    backgroundColor: colors.gray[200],
     marginTop: spacing.xs,
     minHeight: spacing.md,
   },
   tweetCard: {
     flex: 1,
-    backgroundColor: colors.white,
     borderRadius: borderRadius.md,
     borderWidth: 1,
-    borderColor: colors.gray[200],
     padding: spacing.md,
     gap: spacing.xs,
     marginBottom: spacing.xs,
-  },
-  tweetCardError: {
-    borderColor: colors.error,
   },
   tweetHeader: {
     flexDirection: 'row',
@@ -125,15 +138,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   charCount: {
-    ...typography.bodySm,
-    color: colors.gray[400],
-  },
-  charCountError: {
-    color: colors.error,
-    fontWeight: '600',
+    ...typography.caption,
   },
   tweetText: {
-    ...typography.bodyLg,
-    color: colors.gray[900],
+    ...typography.bodyMd,
   },
 });

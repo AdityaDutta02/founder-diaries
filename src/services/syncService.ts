@@ -22,6 +22,7 @@ export interface SyncQueuePayload {
   audioStoragePath?: string;
   imageLocalUri?: string;
   imageStoragePath?: string;
+  localImageId?: string;
   userId?: string;
   entryId?: string;
 }
@@ -110,10 +111,105 @@ export async function processQueueItem(item: SyncQueueItem): Promise<void> {
       }
 
       case 'upload_image': {
-        if (!payload.imageLocalUri) {
-          throw new Error('Missing imageLocalUri for upload_image sync operation');
+        if (!payload.imageLocalUri || !payload.userId || !payload.entryId || !payload.localImageId) {
+          throw new Error('Missing required fields for upload_image sync operation');
         }
-        logger.debug('Skipping upload_image — not yet implemented');
+
+        // Check dependency: parent entry must have a remote_id before we can upload the image
+        const parentEntry = await db.getFirstAsync<{ remote_id: string | null }>(
+          `SELECT remote_id FROM diary_entries WHERE local_id = ?`,
+          [payload.entryId],
+        );
+
+        if (!parentEntry?.remote_id) {
+          // Parent entry not synced yet — reset to pending so it retries later
+          // without consuming retry budget
+          await db.runAsync(
+            `UPDATE sync_queue SET status = 'pending' WHERE id = ?`,
+            [item.id],
+          );
+          logger.debug('upload_image deferred — parent entry not yet synced', {
+            entryId: payload.entryId,
+          });
+          return; // return early — skip the final 'done' update below
+        }
+
+        const remoteEntryId = parentEntry.remote_id;
+        const storagePath = `${payload.userId}/${remoteEntryId}/${payload.localImageId}.jpg`;
+
+        // Read file as base64
+        // eslint-disable-next-line @typescript-eslint/no-var-requires -- expo-file-system lazy require
+        const FileSystem = require('expo-file-system') as typeof import('expo-file-system');
+        let base64: string;
+        try {
+          base64 = await FileSystem.readAsStringAsync(payload.imageLocalUri, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+        } catch {
+          // File no longer exists on disk — mark as failed immediately
+          logger.warn('upload_image: local file missing, marking failed', {
+            uri: payload.imageLocalUri,
+          });
+          await db.runAsync(
+            `UPDATE sync_queue SET status = 'failed', retry_count = 3 WHERE id = ?`,
+            [item.id],
+          );
+          await db.runAsync(
+            `UPDATE diary_images SET sync_status = 'failed' WHERE local_id = ?`,
+            [payload.localImageId],
+          );
+          return;
+        }
+
+        // Decode base64 → Uint8Array for Supabase Storage upload
+        const binaryString = atob(base64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+
+        // Upload to Supabase Storage
+        const { error: uploadError } = await supabase.storage
+          .from('diary-images')
+          .upload(storagePath, bytes, { contentType: 'image/jpeg', upsert: true });
+
+        if (uploadError && uploadError.message !== 'The resource already exists') {
+          throw new Error(`Storage upload failed: ${uploadError.message}`);
+        }
+
+        // Get public URL (or signed URL if bucket is private)
+        const { data: urlData } = supabase.storage.from('diary-images').getPublicUrl(storagePath);
+        const publicUrl = urlData.publicUrl;
+
+        // Insert into diary_images Supabase table
+        const { data: insertedRow, error: insertError } = await supabase
+          .from('diary_images')
+          .upsert(
+            {
+              diary_entry_id: remoteEntryId,
+              user_id: payload.userId,
+              storage_path: storagePath,
+              public_url: publicUrl,
+            },
+            { onConflict: 'storage_path' },
+          )
+          .select('id')
+          .single();
+
+        if (insertError) {
+          throw new Error(`diary_images insert failed: ${insertError.message}`);
+        }
+
+        // Update SQLite diary_images row
+        await db.runAsync(
+          `UPDATE diary_images SET sync_status = 'synced', remote_id = ? WHERE local_id = ?`,
+          [insertedRow?.id ?? null, payload.localImageId],
+        );
+
+        logger.info('Image uploaded and synced', {
+          localImageId: payload.localImageId,
+          storagePath,
+        });
         break;
       }
 

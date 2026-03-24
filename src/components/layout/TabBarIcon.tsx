@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeContext';
 
 // Icon map — rendered as emoji/text since no icon library is installed.
 // Replace with a vector icon library if added in the future.
@@ -29,6 +29,7 @@ export const TabBarIcon = memo(function TabBarIcon({
   badge = false,
   testID,
 }: TabBarIconProps) {
+  const { colors } = useTheme();
   const icon = ICON_MAP[name] ?? ICON_MAP.default;
 
   return (
@@ -41,7 +42,7 @@ export const TabBarIcon = memo(function TabBarIcon({
       </Text>
       {badge && (
         <View
-          style={styles.badge}
+          style={[styles.badge, { backgroundColor: colors.error, borderColor: colors.white }]}
           testID={`tab-icon-${name}-badge`}
           accessibilityLabel="Notification badge"
         />
@@ -66,8 +67,6 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: colors.error,
     borderWidth: 1,
-    borderColor: colors.white,
   },
 });

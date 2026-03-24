@@ -1,13 +1,12 @@
 import React, { memo } from 'react';
 import {
   ScrollView,
-  StyleSheet,
   View,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeContext';
 import { spacing } from '@/theme/spacing';
 
 interface ScreenContainerProps {
@@ -25,12 +24,19 @@ export const ScreenContainer = memo(function ScreenContainer({
   style,
   testID,
 }: ScreenContainerProps) {
+  const { colors } = useTheme();
+
+  const safeAreaStyle: ViewStyle = {
+    flex: 1,
+    backgroundColor: colors.background,
+  };
+
   if (scroll) {
     return (
-      <SafeAreaView style={styles.safeArea} testID={testID}>
+      <SafeAreaView style={safeAreaStyle} testID={testID}>
         <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={[{ padding }, style]}
+          style={{ flex: 1 }}
+          contentContainerStyle={[{ padding, paddingBottom: 24 }, style]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
@@ -41,21 +47,8 @@ export const ScreenContainer = memo(function ScreenContainer({
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} testID={testID}>
-      <View style={[styles.container, { padding }, style]}>{children}</View>
+    <SafeAreaView style={safeAreaStyle} testID={testID}>
+      <View style={[{ flex: 1, padding, paddingBottom: 24 }, style]}>{children}</View>
     </SafeAreaView>
   );
-});
-
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.gray[50],
-  },
-  scrollView: {
-    flex: 1,
-  },
-  container: {
-    flex: 1,
-  },
 });

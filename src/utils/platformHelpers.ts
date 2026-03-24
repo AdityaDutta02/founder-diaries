@@ -1,10 +1,11 @@
-import { colors } from '@/theme/colors';
 import type { Platform, ContentType } from '@/types/database';
+import type { ThemeColors } from '@/theme/colors';
 
 /**
  * Returns the brand hex color for a given platform.
+ * Requires the theme colors object so it respects light/dark mode.
  */
-export function getPlatformColor(platform: Platform): string {
+export function getPlatformColor(platform: Platform, colors: ThemeColors): string {
   return colors.platform[platform];
 }
 

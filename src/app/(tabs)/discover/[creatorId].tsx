@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeContext';
 import { typography } from '@/theme/typography';
 import { borderRadius, spacing } from '@/theme/spacing';
 import { HeaderBar } from '@/components/layout/HeaderBar';
@@ -16,7 +16,7 @@ import { ContentSampleCard, PlatformBadge } from '@/components/discover';
 import type { ContentSampleData } from '@/components/discover';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/lib/logger';
-import type { CreatorProfile, CreatorContentSample } from '@/types/database';
+import type { CreatorProfile } from '@/types/database';
 
 type CreatorDetail = Pick<
   CreatorProfile,
@@ -32,6 +32,7 @@ function formatFollowerCount(count: number | null): string {
 
 export default function CreatorDetailScreen() {
   const { creatorId } = useLocalSearchParams<{ creatorId: string }>();
+  const { colors } = useTheme();
 
   const [creator, setCreator] = useState<CreatorDetail | null>(null);
   const [samples, setSamples] = useState<ContentSampleData[]>([]);
@@ -88,10 +89,10 @@ export default function CreatorDetailScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
         <HeaderBar title="Creator" showBack />
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color={colors.primary[500]} />
+          <ActivityIndicator size="large" color={colors.accent} />
         </View>
       </SafeAreaView>
     );
@@ -99,10 +100,10 @@ export default function CreatorDetailScreen() {
 
   if (error || !creator) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
         <HeaderBar title="Creator" showBack />
         <View style={styles.centered}>
-          <Text style={styles.errorText}>{error ?? 'Creator not found.'}</Text>
+          <Text style={[styles.errorText, { color: colors.error }]}>{error ?? 'Creator not found.'}</Text>
         </View>
       </SafeAreaView>
     );
@@ -115,7 +116,10 @@ export default function CreatorDetailScreen() {
       : null;
 
   return (
-    <SafeAreaView style={styles.safeArea} testID="creator-detail-screen">
+    <SafeAreaView
+      style={[styles.safeArea, { backgroundColor: colors.background }]}
+      testID="creator-detail-screen"
+    >
       <HeaderBar title={displayName} showBack />
 
       <FlatList
@@ -127,47 +131,53 @@ export default function CreatorDetailScreen() {
         ListHeaderComponent={
           <View style={styles.profileHeader}>
             {/* Large avatar */}
-            <View style={styles.avatarLarge} testID="creator-avatar-large">
-              <Text style={styles.avatarInitial}>
+            <View
+              style={[styles.avatarLarge, { backgroundColor: colors.surface2 }]}
+              testID="creator-avatar-large"
+            >
+              <Text style={[styles.avatarInitial, { color: colors.accent }]}>
                 {displayName.charAt(0).toUpperCase()}
               </Text>
             </View>
 
-            <Text style={styles.creatorName} testID="creator-detail-name">
+            <Text style={[styles.creatorName, { color: colors.textPrimary }]} testID="creator-detail-name">
               {displayName}
             </Text>
-            <Text style={styles.creatorHandle} testID="creator-detail-handle">
+            <Text style={[styles.creatorHandle, { color: colors.textSecondary }]} testID="creator-detail-handle">
               @{creator.creator_handle}
             </Text>
 
             <View style={styles.metaRow}>
               <PlatformBadge platform={creator.platform} size="md" />
               {creator.follower_count !== null && (
-                <Text style={styles.followerCount} testID="creator-detail-followers">
+                <Text style={[styles.followerCount, { color: colors.textSecondary }]} testID="creator-detail-followers">
                   {formatFollowerCount(creator.follower_count)}
                 </Text>
               )}
               {relevancePct !== null && (
-                <View style={styles.relevanceBadge} testID="creator-detail-relevance">
-                  <Text style={styles.relevanceText}>{relevancePct}</Text>
+                <View
+                  style={[styles.relevanceBadge, { backgroundColor: colors.accentLight }]}
+                  testID="creator-detail-relevance"
+                >
+                  <Text style={[styles.relevanceText, { color: colors.accentText }]}>{relevancePct}</Text>
                 </View>
               )}
             </View>
 
             {creator.bio ? (
-              <Text style={styles.bio} testID="creator-detail-bio">
+              <Text style={[styles.bio, { color: colors.textSecondary }]} testID="creator-detail-bio">
                 {creator.bio}
               </Text>
             ) : null}
 
             {samples.length > 0 && (
-              <Text style={styles.sectionTitle}>Top Performing Posts</Text>
+              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Top Performing Posts</Text>
             )}
           </View>
         }
         ListEmptyComponent={
           <View style={styles.emptyState} testID="samples-empty-state">
-            <Text style={styles.emptyText}>No content samples available yet.</Text>
+            <Text style={[styles.emptyText, { color: colors.textMuted }]}>No content samples available yet.</Text>
           </View>
         }
         renderItem={({ item }) => (
@@ -181,7 +191,6 @@ export default function CreatorDetailScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.gray[50],
   },
   centered: {
     flex: 1,
@@ -190,12 +199,11 @@ const styles = StyleSheet.create({
   },
   errorText: {
     ...typography.bodyMd,
-    color: colors.error,
     textAlign: 'center',
   },
   listContent: {
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing['3xl'],
+    paddingBottom: 24,
   },
   profileHeader: {
     alignItems: 'center',
@@ -206,22 +214,18 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 48,
-    backgroundColor: colors.primary[100],
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarInitial: {
     fontSize: 40,
     fontWeight: '700',
-    color: colors.primary[600],
   },
   creatorName: {
     ...typography.headingLg,
-    color: colors.gray[900],
   },
   creatorHandle: {
     ...typography.bodyMd,
-    color: colors.gray[500],
   },
   metaRow: {
     flexDirection: 'row',
@@ -232,29 +236,24 @@ const styles = StyleSheet.create({
   },
   followerCount: {
     ...typography.bodySm,
-    color: colors.gray[500],
   },
   relevanceBadge: {
-    backgroundColor: colors.primary[100],
     borderRadius: borderRadius.full,
     paddingVertical: 2,
     paddingHorizontal: spacing.sm,
   },
   relevanceText: {
     ...typography.bodySm,
-    color: colors.primary[600],
     fontWeight: '600',
   },
   bio: {
     ...typography.bodyMd,
-    color: colors.gray[700],
     textAlign: 'center',
     lineHeight: 22,
     paddingHorizontal: spacing.sm,
   },
   sectionTitle: {
     ...typography.headingMd,
-    color: colors.gray[900],
     alignSelf: 'flex-start',
     marginTop: spacing.md,
   },
@@ -267,6 +266,5 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     ...typography.bodyMd,
-    color: colors.gray[400],
   },
 });

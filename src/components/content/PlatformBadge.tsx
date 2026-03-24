@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeContext';
 import { typography } from '@/theme/typography';
 import { borderRadius, spacing } from '@/theme/spacing';
 
@@ -13,10 +13,10 @@ interface PlatformBadgeProps {
   testID?: string;
 }
 
-const PLATFORM_CONFIG: Record<Platform, { label: string; bg: string }> = {
-  linkedin: { label: 'LinkedIn', bg: colors.platform.linkedin },
-  instagram: { label: 'Instagram', bg: colors.platform.instagram },
-  x: { label: 'X', bg: colors.platform.x },
+const PLATFORM_LABELS: Record<Platform, string> = {
+  linkedin: 'LinkedIn',
+  instagram: 'Instagram',
+  x: 'X',
 };
 
 export const PlatformBadge = memo(function PlatformBadge({
@@ -24,15 +24,22 @@ export const PlatformBadge = memo(function PlatformBadge({
   size = 'md',
   testID,
 }: PlatformBadgeProps) {
-  const config = PLATFORM_CONFIG[platform];
+  const { colors } = useTheme();
+  const platformColor = colors.platform[platform];
 
   return (
     <View
-      style={[styles.badge, { backgroundColor: config.bg }, size === 'sm' && styles.badgeSm]}
+      style={[
+        styles.badge,
+        { backgroundColor: platformColor },
+        size === 'sm' && styles.badgeSm,
+      ]}
       testID={testID ?? `platform-badge-${platform}`}
-      accessibilityLabel={`${config.label} platform`}
+      accessibilityLabel={`${PLATFORM_LABELS[platform]} platform`}
     >
-      <Text style={[styles.label, size === 'sm' && styles.labelSm]}>{config.label}</Text>
+      <Text style={[styles.label, size === 'sm' && styles.labelSm, { color: colors.accentText }]}>
+        {PLATFORM_LABELS[platform]}
+      </Text>
     </View>
   );
 });
@@ -50,7 +57,6 @@ const styles = StyleSheet.create({
   },
   label: {
     ...typography.label,
-    color: colors.white,
     fontWeight: '600',
   },
   labelSm: {

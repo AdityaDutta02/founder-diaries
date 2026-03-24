@@ -10,9 +10,9 @@ import {
   View,
 } from 'react-native';
 import { Button, StepDots } from '@/components/ui';
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeContext';
 import { borderRadius, spacing } from '@/theme/spacing';
-import { typography } from '@/theme/typography';
+import { fontFamily, typography } from '@/theme/typography';
 
 type PlatformId = 'linkedin' | 'instagram' | 'x';
 
@@ -75,6 +75,7 @@ function buildInitialState(): PlatformsState {
 }
 
 export default function PlatformSetupScreen() {
+  const { colors } = useTheme();
   const params = useLocalSearchParams<{ industry: string; keywords: string }>();
   const [platforms, setPlatforms] = useState<PlatformsState>(buildInitialState);
 
@@ -123,7 +124,10 @@ export default function PlatformSetupScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container} testID="platform-setup-screen">
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: colors.background }}
+      testID="platform-setup-screen"
+    >
       <ScrollView
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
@@ -136,10 +140,14 @@ export default function PlatformSetupScreen() {
           accessibilityLabel="Go back"
           testID="back-button"
         >
-          <Text style={styles.backText}>← Back</Text>
+          <Text style={[typography.bodyMd, { color: colors.accent, fontFamily: fontFamily.medium }]}>
+            ← Back
+          </Text>
         </Pressable>
 
-        <Text style={styles.heading}>Where do you want to post?</Text>
+        <Text style={[typography.headingXl, { color: colors.textPrimary }]}>
+          Where do you want to post?
+        </Text>
 
         <View style={styles.platformList} testID="platform-list">
           {PLATFORMS.map((platform) => {
@@ -147,23 +155,32 @@ export default function PlatformSetupScreen() {
             return (
               <View
                 key={platform.id}
-                style={[styles.platformCard, state.enabled && styles.platformCardActive]}
+                style={[
+                  styles.platformCard,
+                  {
+                    borderColor: state.enabled ? colors.accent : colors.border,
+                    backgroundColor: state.enabled ? colors.accentLight : colors.surface,
+                    borderRadius: borderRadius.lg,
+                  },
+                ]}
                 testID={`platform-card-${platform.id}`}
               >
                 {/* Platform header row */}
                 <View style={styles.platformHeader}>
                   <View style={styles.platformInfo}>
                     <Text style={styles.platformEmoji}>{platform.emoji}</Text>
-                    <Text style={styles.platformName}>{platform.name}</Text>
+                    <Text style={[typography.headingSm, { color: colors.textPrimary }]}>
+                      {platform.name}
+                    </Text>
                   </View>
                   <Switch
                     value={state.enabled}
                     onValueChange={(val) => togglePlatform(platform.id, val)}
                     trackColor={{
-                      false: colors.gray[200],
-                      true: colors.primary[200],
+                      false: colors.border,
+                      true: colors.accent,
                     }}
-                    thumbColor={state.enabled ? colors.primary[500] : colors.white}
+                    thumbColor={colors.white}
                     accessibilityLabel={`Toggle ${platform.name}`}
                     testID={`platform-toggle-${platform.id}`}
                   />
@@ -171,7 +188,13 @@ export default function PlatformSetupScreen() {
 
                 {/* Content types when enabled */}
                 {state.enabled ? (
-                  <View style={styles.contentTypes} testID={`content-types-${platform.id}`}>
+                  <View
+                    style={[
+                      styles.contentTypes,
+                      { borderTopColor: colors.border },
+                    ]}
+                    testID={`content-types-${platform.id}`}
+                  >
                     {platform.contentTypes.map((ct) => {
                       const isChecked = state.selectedContentTypes.has(ct.id);
                       return (
@@ -184,10 +207,27 @@ export default function PlatformSetupScreen() {
                           accessibilityLabel={ct.label}
                           testID={`content-type-${platform.id}-${ct.id}`}
                         >
-                          <View style={[styles.checkbox, isChecked && styles.checkboxChecked]}>
-                            {isChecked ? <Text style={styles.checkmark}>✓</Text> : null}
+                          <View
+                            style={[
+                              styles.checkbox,
+                              {
+                                borderRadius: borderRadius.sm,
+                                borderColor: isChecked ? colors.accent : colors.border,
+                                backgroundColor: isChecked ? colors.accent : colors.surface,
+                              },
+                            ]}
+                          >
+                            {isChecked ? (
+                              <Text
+                                style={[styles.checkmark, { color: colors.accentText }]}
+                              >
+                                ✓
+                              </Text>
+                            ) : null}
                           </View>
-                          <Text style={styles.checkboxLabel}>{ct.label}</Text>
+                          <Text style={[typography.bodyMd, { color: colors.textSecondary }]}>
+                            {ct.label}
+                          </Text>
                         </Pressable>
                       );
                     })}
@@ -215,43 +255,22 @@ export default function PlatformSetupScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.white,
-  },
   scroll: {
     flexGrow: 1,
     paddingHorizontal: spacing['2xl'],
     paddingTop: spacing.lg,
-    paddingBottom: spacing['3xl'],
     gap: spacing.xl,
   },
   backButton: {
     alignSelf: 'flex-start',
     paddingVertical: spacing.xs,
   },
-  backText: {
-    ...typography.bodyMd,
-    color: colors.primary[500],
-    fontWeight: '500',
-  },
-  heading: {
-    ...typography.headingXl,
-    color: colors.gray[900],
-  },
   platformList: {
     gap: spacing.md,
   },
   platformCard: {
     borderWidth: 1.5,
-    borderColor: colors.gray[200],
-    borderRadius: borderRadius.lg,
     padding: spacing.lg,
-    backgroundColor: colors.white,
-  },
-  platformCardActive: {
-    backgroundColor: colors.primary[50],
-    borderColor: colors.primary[200],
   },
   platformHeader: {
     flexDirection: 'row',
@@ -266,16 +285,11 @@ const styles = StyleSheet.create({
   platformEmoji: {
     fontSize: 24,
   },
-  platformName: {
-    ...typography.headingSm,
-    color: colors.gray[900],
-  },
   contentTypes: {
     marginTop: spacing.md,
     gap: spacing.sm,
     paddingTop: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: colors.primary[100],
   },
   checkboxRow: {
     flexDirection: 'row',
@@ -285,24 +299,12 @@ const styles = StyleSheet.create({
   checkbox: {
     width: 20,
     height: 20,
-    borderRadius: borderRadius.sm,
     borderWidth: 2,
-    borderColor: colors.gray[200],
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.white,
-  },
-  checkboxChecked: {
-    backgroundColor: colors.primary[500],
-    borderColor: colors.primary[500],
   },
   checkmark: {
-    color: colors.white,
     fontSize: 13,
     fontWeight: '700',
-  },
-  checkboxLabel: {
-    ...typography.bodyMd,
-    color: colors.gray[700],
   },
 });

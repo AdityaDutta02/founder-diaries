@@ -1,8 +1,8 @@
 import React, { memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeContext';
 import { typography } from '@/theme/typography';
-import { borderRadius, shadows, spacing } from '@/theme/spacing';
+import { borderRadius, spacing } from '@/theme/spacing';
 
 export interface ContentSampleData {
   content_text: string;
@@ -34,6 +34,8 @@ export const ContentSampleCard = memo(function ContentSampleCard({
   sample,
   testID,
 }: ContentSampleCardProps) {
+  const { colors } = useTheme();
+
   const engagementPct =
     sample.engagement_score !== null
       ? `${(sample.engagement_score * 100).toFixed(1)}% engagement`
@@ -41,36 +43,57 @@ export const ContentSampleCard = memo(function ContentSampleCard({
 
   return (
     <View
-      style={styles.card}
+      style={[
+        styles.card,
+        { backgroundColor: colors.surface, borderColor: colors.border },
+      ]}
       testID={testID ?? 'content-sample-card'}
     >
-      <Text style={styles.contentText} numberOfLines={4} testID="sample-content-text">
+      <Text
+        style={[styles.contentText, { color: colors.textPrimary }]}
+        numberOfLines={4}
+        testID="sample-content-text"
+      >
         {sample.content_text}
       </Text>
 
       <View style={styles.statsRow} testID="sample-stats-row">
         <View style={styles.statItem}>
-          <Text style={styles.statIcon}>❤️</Text>
-          <Text style={styles.statValue}>{formatCount(sample.likes_count)}</Text>
+          <Text style={[styles.statLabel, { color: colors.textMuted }]}>Likes</Text>
+          <Text style={[styles.statValue, { color: colors.textSecondary }]}>
+            {formatCount(sample.likes_count)}
+          </Text>
         </View>
         <View style={styles.statItem}>
-          <Text style={styles.statIcon}>💬</Text>
-          <Text style={styles.statValue}>{formatCount(sample.comments_count)}</Text>
+          <Text style={[styles.statLabel, { color: colors.textMuted }]}>Comments</Text>
+          <Text style={[styles.statValue, { color: colors.textSecondary }]}>
+            {formatCount(sample.comments_count)}
+          </Text>
         </View>
         <View style={styles.statItem}>
-          <Text style={styles.statIcon}>↗️</Text>
-          <Text style={styles.statValue}>{formatCount(sample.shares_count)}</Text>
+          <Text style={[styles.statLabel, { color: colors.textMuted }]}>Shares</Text>
+          <Text style={[styles.statValue, { color: colors.textSecondary }]}>
+            {formatCount(sample.shares_count)}
+          </Text>
         </View>
       </View>
 
       <View style={styles.footer}>
         {engagementPct !== null && (
-          <View style={styles.engagementBadge} testID="sample-engagement">
-            <Text style={styles.engagementText}>{engagementPct}</Text>
+          <View
+            style={[styles.engagementBadge, { backgroundColor: colors.accentLight }]}
+            testID="sample-engagement"
+          >
+            <Text style={[styles.engagementText, { color: colors.accent }]}>
+              {engagementPct}
+            </Text>
           </View>
         )}
         {sample.posted_at ? (
-          <Text style={styles.dateText} testID="sample-date">
+          <Text
+            style={[styles.dateText, { color: colors.textMuted }]}
+            testID="sample-date"
+          >
             {formatDate(sample.posted_at)}
           </Text>
         ) : null}
@@ -81,33 +104,26 @@ export const ContentSampleCard = memo(function ContentSampleCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.gray[50],
     borderRadius: borderRadius.lg,
+    borderWidth: 1,
     padding: spacing.md,
     gap: spacing.sm,
-    ...shadows.sm,
   },
   contentText: {
     ...typography.bodyMd,
-    color: colors.gray[700],
-    lineHeight: 22,
   },
   statsRow: {
     flexDirection: 'row',
     gap: spacing.lg,
   },
   statItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
+    gap: 2,
   },
-  statIcon: {
-    fontSize: 14,
+  statLabel: {
+    ...typography.caption,
   },
   statValue: {
     ...typography.bodySm,
-    color: colors.gray[500],
-    fontWeight: '500',
   },
   footer: {
     flexDirection: 'row',
@@ -115,18 +131,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   engagementBadge: {
-    backgroundColor: colors.primary[100],
     borderRadius: borderRadius.full,
     paddingVertical: 2,
     paddingHorizontal: spacing.sm,
   },
   engagementText: {
-    ...typography.bodySm,
-    color: colors.primary[600],
-    fontWeight: '600',
+    ...typography.label,
   },
   dateText: {
-    ...typography.bodySm,
-    color: colors.gray[400],
+    ...typography.caption,
   },
 });

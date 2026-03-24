@@ -1,5 +1,5 @@
 import React, { memo, useCallback, useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import {
   addMonths,
   eachDayOfInterval,
@@ -10,8 +10,8 @@ import {
   startOfMonth,
   subMonths,
 } from 'date-fns';
-import { colors } from '@/theme/colors';
-import { typography } from '@/theme/typography';
+import { useTheme } from '@/theme/ThemeContext';
+import { typography, fontFamily } from '@/theme/typography';
 import { spacing, borderRadius } from '@/theme/spacing';
 
 const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -39,6 +39,8 @@ export const DiaryCalendar = memo(function DiaryCalendar({
   onChangeMonth,
   testID,
 }: DiaryCalendarProps) {
+  const { colors } = useTheme();
+
   const monthLabel = format(currentMonth, 'MMMM yyyy');
 
   const { days, leadingBlanks } = useMemo(() => {
@@ -71,167 +73,194 @@ export const DiaryCalendar = memo(function DiaryCalendar({
   ];
 
   return (
-    <View style={styles.container} testID={testID ?? 'diary-calendar'}>
+    <View
+      style={{
+        backgroundColor: colors.surface,
+        borderRadius: borderRadius.lg,
+        borderWidth: 1,
+        borderColor: colors.border,
+        padding: spacing.lg,
+        gap: spacing.sm,
+      }}
+      testID={testID ?? 'diary-calendar'}
+    >
       {/* Month header */}
-      <View style={styles.header}>
-        <Pressable
-          onPress={handlePrevMonth}
-          hitSlop={8}
-          style={styles.arrowButton}
-          accessibilityRole="button"
-          accessibilityLabel="Previous month"
-          testID="calendar-prev-month"
-        >
-          <Text style={styles.arrow}>{'‹'}</Text>
-        </Pressable>
-        <Text style={styles.monthLabel} testID="calendar-month-label">
-          {monthLabel}
-        </Text>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: spacing.xs,
+        }}
+      >
+        {/* "March 2026 ›" — tapping the › advances to next month */}
         <Pressable
           onPress={handleNextMonth}
           hitSlop={8}
-          style={styles.arrowButton}
           accessibilityRole="button"
           accessibilityLabel="Next month"
-          testID="calendar-next-month"
+          style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}
+          testID="calendar-month-label"
         >
-          <Text style={styles.arrow}>{'›'}</Text>
+          <Text
+            style={{
+              ...typography.headingLg,
+              color: colors.textPrimary,
+            }}
+          >
+            {monthLabel}
+          </Text>
+          <Text
+            style={{
+              fontSize: 18,
+              lineHeight: 22,
+              color: colors.accent,
+              fontFamily: fontFamily.bold,
+            }}
+          >
+            {'›'}
+          </Text>
         </Pressable>
+
+        {/* ‹ › navigation arrows */}
+        <View style={{ flexDirection: 'row', gap: spacing.xs }}>
+          <Pressable
+            onPress={handlePrevMonth}
+            hitSlop={8}
+            style={{ padding: spacing.xs }}
+            accessibilityRole="button"
+            accessibilityLabel="Previous month"
+            testID="calendar-prev-month"
+          >
+            <Text
+              style={{
+                fontSize: 20,
+                lineHeight: 24,
+                color: colors.textMuted,
+                fontFamily: fontFamily.bold,
+              }}
+            >
+              {'‹'}
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={handleNextMonth}
+            hitSlop={8}
+            style={{ padding: spacing.xs }}
+            accessibilityRole="button"
+            accessibilityLabel="Next month"
+            testID="calendar-next-month"
+          >
+            <Text
+              style={{
+                fontSize: 20,
+                lineHeight: 24,
+                color: colors.textMuted,
+                fontFamily: fontFamily.bold,
+              }}
+            >
+              {'›'}
+            </Text>
+          </Pressable>
+        </View>
       </View>
 
       {/* Day-of-week labels */}
-      <View style={styles.weekRow}>
+      <View style={{ flexDirection: 'row' }}>
         {DAY_LABELS.map((label, idx) => (
-          <View key={`wl-${idx}`} style={styles.weekCell}>
-            <Text style={styles.weekLabel}>{label}</Text>
+          <View
+            key={`wl-${idx}`}
+            style={{ flex: 1, alignItems: 'center', paddingVertical: spacing.xs }}
+          >
+            <Text style={{ ...typography.label, color: colors.textMuted }}>{label}</Text>
           </View>
         ))}
       </View>
 
       {/* Day grid */}
-      <View style={styles.grid}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
         {gridCells.map((date, idx) => {
           if (date === null) {
-            return <View key={`blank-${idx}`} style={styles.dayCell} />;
+            return (
+              <View
+                key={`blank-${idx}`}
+                style={{ width: `${100 / 7}%`, aspectRatio: 1 }}
+              />
+            );
           }
           const dateStr = format(date, 'yyyy-MM-dd');
           const isSelected = dateStr === selectedDate;
           const isTodayDate = isToday(date);
           const hasEntry = entryDates.has(dateStr);
+          const isFuture = date > new Date();
+
+          // Today: solid orange circle; selected (non-today): orange outline; others: transparent
+          let circleBg: string | undefined;
+          if (isTodayDate) {
+            circleBg = colors.accent;
+          } else if (isSelected) {
+            circleBg = undefined;
+          }
+
+          const textColor = isTodayDate
+            ? colors.accentText
+            : isFuture
+              ? colors.textMuted
+              : colors.textSecondary;
 
           return (
             <Pressable
               key={dateStr}
               onPress={() => handleSelectDay(date)}
-              style={[
-                styles.dayCell,
-                isTodayDate && !isSelected && styles.dayCellToday,
-                isSelected && styles.dayCellSelected,
-              ]}
+              style={{
+                width: `${100 / 7}%`,
+                aspectRatio: 1,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: borderRadius.full,
+                ...(circleBg ? { backgroundColor: circleBg } : {}),
+                ...(isSelected && !isTodayDate
+                  ? {
+                      borderWidth: 1.5,
+                      borderColor: colors.accent,
+                      borderRadius: borderRadius.full,
+                    }
+                  : {}),
+              }}
               accessibilityRole="button"
               accessibilityLabel={format(date, 'MMMM d, yyyy')}
               accessibilityState={{ selected: isSelected }}
               testID={`calendar-day-${dateStr}`}
             >
               <Text
-                style={[
-                  styles.dayText,
-                  isTodayDate && !isSelected && styles.dayTextToday,
-                  isSelected && styles.dayTextSelected,
-                ]}
+                style={{
+                  fontFamily: fontFamily.medium,
+                  fontSize: 13,
+                  lineHeight: 16,
+                  color: textColor,
+                  opacity: isFuture && !isTodayDate ? 0.4 : 1,
+                }}
               >
                 {format(date, 'd')}
               </Text>
-              {hasEntry && (
+              {/* Small orange dot below day number for days with entries */}
+              {hasEntry && !isTodayDate ? (
                 <View
-                  style={[styles.entryDot, isSelected && styles.entryDotSelected]}
-                  testID={`calendar-entry-dot-${dateStr}`}
+                  style={{
+                    position: 'absolute',
+                    bottom: 3,
+                    width: 4,
+                    height: 4,
+                    borderRadius: 2,
+                    backgroundColor: colors.accent,
+                  }}
+                  testID={`entry-dot-${dateStr}`}
                 />
-              )}
+              ) : null}
             </Pressable>
           );
         })}
       </View>
     </View>
   );
-});
-
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.lg,
-    padding: spacing.md,
-    gap: spacing.sm,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.xs,
-  },
-  arrowButton: {
-    padding: spacing.xs,
-  },
-  arrow: {
-    fontSize: 22,
-    color: colors.gray[700],
-    fontWeight: '600',
-  },
-  monthLabel: {
-    ...typography.headingSm,
-    color: colors.gray[900],
-  },
-  weekRow: {
-    flexDirection: 'row',
-  },
-  weekCell: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: spacing.xs,
-  },
-  weekLabel: {
-    ...typography.label,
-    color: colors.gray[400],
-    fontWeight: '600',
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  dayCell: {
-    width: `${100 / 7}%`,
-    aspectRatio: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: borderRadius.full,
-    gap: 2,
-  },
-  dayCellToday: {
-    backgroundColor: colors.primary[100],
-  },
-  dayCellSelected: {
-    backgroundColor: colors.primary[500],
-  },
-  dayText: {
-    ...typography.bodyMd,
-    color: colors.gray[700],
-    fontWeight: '500',
-  },
-  dayTextToday: {
-    color: colors.primary[600],
-    fontWeight: '700',
-  },
-  dayTextSelected: {
-    color: colors.white,
-    fontWeight: '700',
-  },
-  entryDot: {
-    width: 4,
-    height: 4,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.primary[500],
-  },
-  entryDotSelected: {
-    backgroundColor: colors.white,
-  },
 });

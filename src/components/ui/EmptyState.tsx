@@ -1,7 +1,7 @@
 import React, { memo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { colors } from '@/theme/colors';
-import { typography } from '@/theme/typography';
+import { Text, View } from 'react-native';
+import { useTheme } from '@/theme/ThemeContext';
+import { typography, fontFamily } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Button } from './Button';
 
@@ -22,26 +22,60 @@ export const EmptyState = memo(function EmptyState({
   onAction,
   testID,
 }: EmptyStateProps) {
+  const { colors } = useTheme();
   const showAction = actionLabel !== undefined && onAction !== undefined;
 
   return (
     <View
-      style={styles.container}
+      style={{
+        alignItems: 'center',
+        paddingVertical: spacing['4xl'],
+        paddingHorizontal: spacing['2xl'],
+        alignSelf: 'stretch',
+      }}
       testID={testID ?? 'empty-state'}
       accessibilityRole="none"
       accessibilityLabel={`${title}. ${description}`}
     >
-      <View style={styles.iconWrapper} accessibilityElementsHidden>
+      <View
+        style={{
+          width: 64,
+          height: 64,
+          borderRadius: 32,
+          backgroundColor: colors.surface2,
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: spacing.xl,
+        }}
+        accessibilityElementsHidden
+      >
         {icon}
       </View>
-      <Text style={styles.title} testID="empty-state-title">
+      <Text
+        style={{
+          ...typography.headingMd,
+          fontFamily: fontFamily.semibold,
+          color: colors.textPrimary,
+          textAlign: 'center',
+          marginBottom: spacing.sm,
+        }}
+        testID="empty-state-title"
+      >
         {title}
       </Text>
-      <Text style={styles.description} testID="empty-state-description">
+      <Text
+        style={{
+          ...typography.bodyMd,
+          color: colors.textSecondary,
+          textAlign: 'center',
+          lineHeight: 22,
+        }}
+        testID="empty-state-description"
+      >
         {description}
       </Text>
       {showAction ? (
-        <View style={styles.actionWrapper}>
+        <View style={{ marginTop: spacing.xl, minWidth: 160 }}>
           <Button
             label={actionLabel}
             onPress={onAction}
@@ -53,33 +87,4 @@ export const EmptyState = memo(function EmptyState({
       ) : null}
     </View>
   );
-});
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing['2xl'],
-    paddingVertical: spacing['3xl'],
-  },
-  iconWrapper: {
-    marginBottom: spacing.lg,
-  },
-  title: {
-    ...typography.headingMd,
-    color: colors.gray[900],
-    textAlign: 'center',
-    marginBottom: spacing.sm,
-  },
-  description: {
-    ...typography.bodyMd,
-    color: colors.gray[500],
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  actionWrapper: {
-    marginTop: spacing.xl,
-    minWidth: 160,
-  },
 });

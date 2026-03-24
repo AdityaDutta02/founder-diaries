@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { colors } from '@/theme/colors';
+import { Text, View } from 'react-native';
+import { useTheme } from '@/theme/ThemeContext';
 import { typography } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 
@@ -22,31 +22,17 @@ export const ContentTypeIcon = memo(function ContentTypeIcon({
   contentType,
   testID,
 }: ContentTypeIconProps) {
+  const { colors } = useTheme();
   const config = CONTENT_TYPE_CONFIG[contentType];
 
   return (
     <View
-      style={styles.container}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}
       testID={testID ?? `content-type-icon-${contentType}`}
       accessibilityLabel={`Content type: ${config.label}`}
     >
-      <Text style={styles.emoji}>{config.emoji}</Text>
-      <Text style={styles.label}>{config.label}</Text>
+      <Text style={{ fontSize: 13 }}>{config.emoji}</Text>
+      <Text style={[typography.bodySm, { color: colors.textSecondary }]}>{config.label}</Text>
     </View>
   );
-});
-
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  emoji: {
-    fontSize: 13,
-  },
-  label: {
-    ...typography.bodySm,
-    color: colors.gray[500],
-  },
 });

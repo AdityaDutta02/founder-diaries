@@ -1,7 +1,6 @@
 import React, { memo, useState } from 'react';
 import {
   Pressable,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -9,8 +8,8 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
-import { colors } from '@/theme/colors';
-import { typography } from '@/theme/typography';
+import { useTheme } from '@/theme/ThemeContext';
+import { typography, fontFamily } from '@/theme/typography';
 import { borderRadius, spacing } from '@/theme/spacing';
 
 export interface InputProps {
@@ -61,19 +60,31 @@ export const Input = memo(function Input({
   numberOfLines,
   textAlignVertical,
 }: InputProps) {
+  const { colors } = useTheme();
   const [isFocused, setIsFocused] = useState(false);
 
   const showCharCount = maxLength !== undefined;
   const charCount = value.length;
 
+  const borderColor = error
+    ? colors.error
+    : isFocused
+    ? colors.accent
+    : colors.border;
+
   return (
     <View
-      style={[styles.container, containerStyle]}
+      style={[{ gap: spacing.xs }, containerStyle]}
       testID={testID ? `${testID}-wrapper` : undefined}
     >
       {label ? (
         <Text
-          style={styles.label}
+          style={{
+            ...typography.label,
+            fontFamily: fontFamily.semibold,
+            color: colors.textSecondary,
+            marginBottom: 2,
+          }}
           testID={testID ? `${testID}-label` : undefined}
           accessibilityRole="text"
         >
@@ -83,16 +94,39 @@ export const Input = memo(function Input({
 
       <View
         style={[
-          styles.inputWrapper,
-          multiline && styles.multilineWrapper,
-          isFocused && styles.focused,
-          error ? styles.errorBorder : null,
+          {
+            flexDirection: 'row' as const,
+            alignItems: 'center' as const,
+            borderWidth: 1.5,
+            borderColor,
+            borderRadius: borderRadius.md,
+            backgroundColor: colors.surface,
+            paddingHorizontal: spacing.md,
+            minHeight: 44,
+          },
+          multiline && {
+            alignItems: 'flex-start' as const,
+            minHeight: 120,
+            paddingVertical: spacing.sm,
+          },
         ]}
       >
         <TextInput
-          style={[styles.input, multiline && styles.multilineInput]}
+          style={[
+            {
+              flex: 1,
+              ...typography.bodyMd,
+              fontFamily: fontFamily.regular,
+              color: colors.textPrimary,
+              paddingVertical: spacing.sm,
+            },
+            multiline && {
+              textAlignVertical: 'top' as const,
+              paddingTop: spacing.xs,
+            },
+          ]}
           placeholder={placeholder}
-          placeholderTextColor={colors.gray[400]}
+          placeholderTextColor={colors.textMuted}
           value={value}
           onChangeText={onChangeText}
           secureTextEntry={secureTextEntry}
@@ -113,15 +147,25 @@ export const Input = memo(function Input({
           accessibilityLabel={label ?? placeholder}
         />
         {rightIcon ? (
-          <View style={styles.rightIcon}>{rightIcon}</View>
+          <View style={{ marginLeft: spacing.sm, justifyContent: 'center' }}>{rightIcon}</View>
         ) : null}
       </View>
 
-      <View style={styles.footer}>
-        <View style={styles.footerLeft}>
+      <View
+        style={{
+          flexDirection: 'row' as const,
+          justifyContent: 'space-between' as const,
+          alignItems: 'flex-start' as const,
+          minHeight: 0,
+        }}
+      >
+        <View style={{ flex: 1 }}>
           {error ? (
             <Text
-              style={styles.error}
+              style={{
+                ...typography.bodySm,
+                color: colors.error,
+              }}
               testID={testID ? `${testID}-error` : undefined}
               accessibilityRole="alert"
             >
@@ -129,7 +173,10 @@ export const Input = memo(function Input({
             </Text>
           ) : helperText ? (
             <Text
-              style={styles.helperText}
+              style={{
+                ...typography.caption,
+                color: colors.textMuted,
+              }}
               testID={testID ? `${testID}-helper` : undefined}
             >
               {helperText}
@@ -138,7 +185,11 @@ export const Input = memo(function Input({
         </View>
         {showCharCount ? (
           <Text
-            style={styles.charCount}
+            style={{
+              ...typography.caption,
+              color: colors.textMuted,
+              marginLeft: spacing.sm,
+            }}
             testID={testID ? `${testID}-char-count` : undefined}
           >
             {charCount}/{maxLength}
@@ -163,78 +214,7 @@ export const EyeToggle = memo(function EyeToggle({ visible, onToggle }: EyeToggl
       accessibilityLabel={visible ? 'Hide password' : 'Show password'}
       testID="eye-toggle"
     >
-      <Text style={styles.eyeIcon}>{visible ? '👁️' : '🙈'}</Text>
+      <Text style={{ fontSize: 18 }}>{visible ? '👁️' : '🙈'}</Text>
     </Pressable>
   );
-});
-
-const styles = StyleSheet.create({
-  container: {
-    gap: spacing.xs,
-  },
-  label: {
-    ...typography.label,
-    color: colors.gray[700],
-    marginBottom: 2,
-  },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: colors.gray[200],
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.gray[50],
-    paddingHorizontal: spacing.md,
-    minHeight: 44,
-  },
-  multilineWrapper: {
-    alignItems: 'flex-start',
-    minHeight: 120,
-    paddingVertical: spacing.sm,
-  },
-  focused: {
-    borderColor: colors.primary[500],
-  },
-  errorBorder: {
-    borderColor: colors.error,
-  },
-  input: {
-    flex: 1,
-    ...typography.bodyMd,
-    color: colors.gray[900],
-    paddingVertical: spacing.sm,
-  },
-  multilineInput: {
-    textAlignVertical: 'top',
-    paddingTop: spacing.xs,
-  },
-  rightIcon: {
-    marginLeft: spacing.sm,
-    justifyContent: 'center',
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    minHeight: 0,
-  },
-  footerLeft: {
-    flex: 1,
-  },
-  error: {
-    ...typography.bodySm,
-    color: colors.error,
-  },
-  helperText: {
-    ...typography.bodySm,
-    color: colors.gray[500],
-  },
-  charCount: {
-    ...typography.bodySm,
-    color: colors.gray[400],
-    marginLeft: spacing.sm,
-  },
-  eyeIcon: {
-    fontSize: 18,
-  },
 });

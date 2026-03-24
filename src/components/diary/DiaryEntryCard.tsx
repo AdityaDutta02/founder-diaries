@@ -2,9 +2,9 @@ import React, { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { format } from 'date-fns';
 import type { LocalDiaryEntry } from '@/stores/diaryStore';
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/ThemeContext';
 import { typography } from '@/theme/typography';
-import { spacing, borderRadius, shadows } from '@/theme/spacing';
+import { spacing, borderRadius } from '@/theme/spacing';
 
 const MOOD_EMOJI: Record<string, string> = {
   energized: '⚡',
@@ -12,12 +12,6 @@ const MOOD_EMOJI: Record<string, string> = {
   neutral: '😐',
   stressed: '😰',
   frustrated: '😤',
-};
-
-const SYNC_DOT_COLOR: Record<LocalDiaryEntry['sync_status'], string> = {
-  synced: colors.success,
-  pending: colors.warning,
-  failed: colors.error,
 };
 
 interface DiaryEntryCardProps {
@@ -31,134 +25,132 @@ export const DiaryEntryCard = memo(function DiaryEntryCard({
   onPress,
   testID,
 }: DiaryEntryCardProps) {
-  const entryDate = new Date(entry.entry_date + 'T00:00:00');
-  const formattedDate = format(entryDate, 'MMM d, yyyy');
+  const { colors } = useTheme();
+
   const formattedTime = entry.created_at
     ? format(new Date(entry.created_at), 'h:mm a')
     : '';
   const moodEmoji = entry.mood ? MOOD_EMOJI[entry.mood] : null;
-  const syncColor = SYNC_DOT_COLOR[entry.sync_status];
-  const hasAudio = Boolean(entry.audio_local_uri);
-  const imageCount = entry.images.length;
+  const hasAttachment = Boolean(entry.audio_local_uri) || entry.images.length > 0;
 
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+      style={({ pressed }) => [
+        styles.card,
+        {
+          backgroundColor: colors.surface,
+          borderColor: colors.border,
+          opacity: pressed ? 0.85 : 1,
+        },
+      ]}
       accessibilityRole="button"
-      accessibilityLabel={`Diary entry for ${formattedDate}`}
+      accessibilityLabel={`Diary entry at ${formattedTime}`}
       testID={testID ?? `diary-entry-card-${entry.local_id}`}
     >
-      {/* Top row */}
+      {/* Top row: time + mood emoji, status indicators top-right */}
       <View style={styles.topRow}>
-        <Text style={styles.dateText}>
-          {formattedDate}
-          {formattedTime ? `  ·  ${formattedTime}` : ''}
-        </Text>
-        {moodEmoji ? (
-          <Text style={styles.moodEmoji} accessibilityLabel={`Mood: ${entry.mood ?? ''}`}>
-            {moodEmoji}
-          </Text>
-        ) : null}
+        <View style={styles.topLeft}>
+          {formattedTime ? (
+            <Text style={[styles.timeLabel, { color: colors.textMuted }]}>
+              {formattedTime}
+            </Text>
+          ) : null}
+          {moodEmoji ? (
+            <Text
+              style={styles.moodEmoji}
+              accessibilityLabel={`Mood: ${entry.mood ?? ''}`}
+            >
+              {moodEmoji}
+            </Text>
+          ) : null}
+        </View>
+        <View style={styles.topRight}>
+          {entry.sync_status === 'failed' ? (
+            <Text
+              style={[styles.syncIcon, { color: colors.error }]}
+              accessibilityLabel="Sync failed"
+              testID="sync-failed-icon"
+            >
+              {'☁✗'}
+            </Text>
+          ) : entry.sync_status === 'pending' ? (
+            <Text
+              style={[styles.syncIcon, { color: colors.textMuted }]}
+              accessibilityLabel="Sync pending"
+              testID="sync-pending-icon"
+            >
+              {'☁'}
+            </Text>
+          ) : null}
+          {hasAttachment ? (
+            <Text
+              style={[styles.attachmentIcon, { color: colors.textMuted }]}
+              testID="attachment-icon"
+            >
+              {'📎'}
+            </Text>
+          ) : null}
+        </View>
       </View>
 
       {/* Text preview */}
       {entry.text_content ? (
-        <Text style={styles.preview} numberOfLines={2} testID="entry-preview">
+        <Text
+          style={[styles.previewText, { color: colors.textPrimary }]}
+          numberOfLines={3}
+          testID="entry-preview"
+        >
           {entry.text_content}
         </Text>
       ) : (
-        <Text style={styles.emptyPreview} numberOfLines={1}>
+        <Text
+          style={[styles.previewText, { color: colors.textMuted, fontStyle: 'italic' }]}
+          numberOfLines={1}
+        >
           No text recorded
         </Text>
       )}
-
-      {/* Bottom row */}
-      <View style={styles.bottomRow}>
-        <View style={styles.attachmentRow}>
-          {hasAudio && (
-            <View style={styles.attachmentBadge} testID="audio-badge">
-              <Text style={styles.attachmentIcon}>{'🎤'}</Text>
-            </View>
-          )}
-          {imageCount > 0 && (
-            <View style={styles.attachmentBadge} testID="image-badge">
-              <Text style={styles.attachmentIcon}>{'📷'}</Text>
-              <Text style={styles.attachmentCount}>{imageCount}</Text>
-            </View>
-          )}
-        </View>
-        <View
-          style={[styles.syncDot, { backgroundColor: syncColor }]}
-          accessibilityLabel={`Sync status: ${entry.sync_status}`}
-          testID="sync-dot"
-        />
-      </View>
     </Pressable>
   );
 });
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.white,
     borderRadius: borderRadius.lg,
-    borderWidth: 1.5,
-    borderColor: colors.gray[200],
+    borderWidth: 1,
     padding: spacing.md,
     gap: spacing.sm,
-    minHeight: 100,
     width: '100%',
-    ...shadows.sm,
-  },
-  cardPressed: {
-    opacity: 0.85,
   },
   topRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  dateText: {
-    ...typography.label,
-    color: colors.gray[500],
-  },
-  moodEmoji: {
-    fontSize: 18,
-  },
-  preview: {
-    ...typography.bodyMd,
-    color: colors.gray[700],
-    flex: 1,
-  },
-  emptyPreview: {
-    ...typography.bodyMd,
-    color: colors.gray[400],
-    fontStyle: 'italic',
-  },
-  bottomRow: {
+  topLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  attachmentRow: {
-    flexDirection: 'row',
     gap: spacing.sm,
   },
-  attachmentBadge: {
+  topRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
+    gap: spacing.xs,
+  },
+  timeLabel: {
+    ...typography.label,
+  },
+  moodEmoji: {
+    fontSize: 16,
+  },
+  syncIcon: {
+    fontSize: 13,
   },
   attachmentIcon: {
-    fontSize: 12,
+    fontSize: 14,
   },
-  attachmentCount: {
-    ...typography.label,
-    color: colors.gray[500],
-  },
-  syncDot: {
-    width: 8,
-    height: 8,
-    borderRadius: borderRadius.full,
+  previewText: {
+    ...typography.bodyMd,
   },
 });
