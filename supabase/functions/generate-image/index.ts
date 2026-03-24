@@ -3,9 +3,13 @@ import { AppError, handleError } from "../_shared/errors.ts";
 import { logger } from "../_shared/logger.ts";
 import { supabaseAdmin } from "../_shared/supabaseAdmin.ts";
 import { GenerateImageRequestSchema } from "../_shared/validators.ts";
+import {
+  callOpenRouter,
+  MODELS,
+  type ChatMessage,
+} from "../_shared/openrouter.ts";
 
-const GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
-const GEMINI_IMAGE_MODEL = "gemini-2.0-flash-exp";
+const MODEL = MODELS.IMAGE_GENERATION;
 
 Deno.serve(async (req: Request) => {
   const corsResponse = handleCors(req);
@@ -45,56 +49,58 @@ Deno.serve(async (req: Request) => {
       metadata: { postId, aspectRatio },
     });
 
-    const geminiApiKey = Deno.env.get("GEMINI_API_KEY");
-    if (!geminiApiKey) throw new AppError("GEMINI_API_KEY not configured", 500);
-
     // Build the full image prompt
     const fullPrompt = `Create a professional social media graphic. Topic: ${imagePrompt}. Style: Clean, modern, visually striking. No text overlay. Aspect ratio: ${aspectRatio}. High quality, suitable for professional social media.`;
 
-    // Call Gemini image generation API
-    const geminiUrl = `${GEMINI_API_BASE}/${GEMINI_IMAGE_MODEL}:generateContent?key=${geminiApiKey}`;
-    const geminiResponse = await fetch(geminiUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              { text: fullPrompt },
-            ],
-          },
-        ],
-        generationConfig: {
-          responseModalities: ["IMAGE"],
-        },
-      }),
-    });
+    // Call OpenRouter with Gemini Flash for image generation
+    const messages: ChatMessage[] = [
+      { role: "user", content: fullPrompt },
+    ];
 
-    if (!geminiResponse.ok) {
-      const geminiError = await geminiResponse.text();
-      logger.error("Gemini API error", {
-        functionName,
-        userId: user.id,
-        metadata: { status: geminiResponse.status, body: geminiError },
-      });
-      throw new AppError("Image generation service error", 502);
-    }
-
-    const geminiResult = await geminiResponse.json();
-    const imagePart = geminiResult.candidates?.[0]?.content?.parts?.find(
-      (part: { inlineData?: { mimeType: string; data: string } }) => part.inlineData
+    const response = await callOpenRouter(
+      {
+        model: MODEL,
+        messages,
+        max_tokens: 4096,
+      },
+      { functionName, userId: user.id },
     );
 
-    if (!imagePart?.inlineData?.data) {
-      throw new AppError("No image returned from generation service", 500);
+    // Extract image data from response
+    // OpenRouter returns Gemini image gen as base64 in the response content
+    const content = response.choices?.[0]?.message?.content ?? "";
+
+    // Check if we got an inline image (base64 data URL pattern)
+    const base64Match = content.match(/data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/=]+)/);
+
+    let imageBytes: Uint8Array;
+    let mimeType: string;
+
+    if (base64Match) {
+      mimeType = `image/${base64Match[1]}`;
+      imageBytes = Uint8Array.from(
+        atob(base64Match[2]),
+        (char) => char.charCodeAt(0)
+      );
+    } else {
+      // Fallback: try parsing the raw content as a base64 string
+      // Some OpenRouter responses return raw base64 without data URL prefix
+      try {
+        imageBytes = Uint8Array.from(
+          atob(content.trim()),
+          (char) => char.charCodeAt(0)
+        );
+        mimeType = "image/png";
+      } catch {
+        logger.error("No valid image data in AI response", {
+          functionName,
+          userId: user.id,
+          metadata: { contentLength: content.length, contentPreview: content.slice(0, 200) },
+        });
+        throw new AppError("No image returned from generation service", 500);
+      }
     }
 
-    // Decode base64 image bytes
-    const imageBytes = Uint8Array.from(
-      atob(imagePart.inlineData.data),
-      (char) => char.charCodeAt(0)
-    );
-    const mimeType: string = imagePart.inlineData.mimeType ?? "image/png";
     const extension = mimeType.split("/")[1] ?? "png";
 
     // Upload to Supabase Storage
@@ -135,7 +141,7 @@ Deno.serve(async (req: Request) => {
     logger.info("Image generation completed", {
       functionName,
       userId: user.id,
-      metadata: { postId, storagePath },
+      metadata: { postId, storagePath, model: MODEL },
     });
 
     return new Response(

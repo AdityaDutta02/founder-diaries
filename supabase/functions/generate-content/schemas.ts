@@ -1,4 +1,5 @@
 import { z } from "npm:zod@3";
+import type { OpenAITool } from "../_shared/openrouter.ts";
 
 export const LinkedInPostSchema = z.object({
   title: z.string().min(1).max(100),
@@ -54,101 +55,93 @@ export type Thread = z.infer<typeof ThreadSchema>;
 export type SinglePost = z.infer<typeof SinglePostSchema>;
 export type ReelCaption = z.infer<typeof ReelCaptionSchema>;
 
-// Claude tool definitions for structured output
+// OpenAI-format tool definitions for OpenRouter
+function makeTool(
+  name: string,
+  description: string,
+  parameters: Record<string, unknown>
+): OpenAITool {
+  return { type: "function", function: { name, description, parameters } };
+}
+
 export const contentTools = {
-  linkedin_post: {
-    name: "create_linkedin_post",
-    description: "Create a structured LinkedIn post from diary content",
-    input_schema: {
-      type: "object",
-      properties: {
-        title: { type: "string", description: "Short title summarizing the post topic" },
-        hookLine: { type: "string", description: "Opening hook line to grab attention" },
-        bodyText: { type: "string", description: "Full post body text with paragraphs" },
-        hashtags: { type: "array", items: { type: "string" }, description: "3-5 relevant hashtags without #" },
-        imagePrompt: { type: "string", description: "Detailed prompt for generating a complementary image" },
-        estimatedReadTime: { type: "number", description: "Estimated read time in minutes" },
-      },
-      required: ["title", "hookLine", "bodyText", "hashtags", "imagePrompt", "estimatedReadTime"],
+  linkedin_post: makeTool("create_linkedin_post", "Create a structured LinkedIn post from diary content", {
+    type: "object",
+    properties: {
+      title: { type: "string", description: "Short title summarizing the post topic" },
+      hookLine: { type: "string", description: "Opening hook line to grab attention" },
+      bodyText: { type: "string", description: "Full post body text with paragraphs" },
+      hashtags: { type: "array", items: { type: "string" }, description: "3-5 relevant hashtags without #" },
+      imagePrompt: { type: "string", description: "Detailed prompt for generating a complementary image" },
+      estimatedReadTime: { type: "number", description: "Estimated read time in minutes" },
     },
-  },
-  carousel: {
-    name: "create_carousel",
-    description: "Create a structured LinkedIn carousel from diary content",
-    input_schema: {
-      type: "object",
-      properties: {
-        title: { type: "string", description: "Carousel series title" },
-        caption: { type: "string", description: "Post caption accompanying the carousel" },
-        slides: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              slideNumber: { type: "number" },
-              heading: { type: "string", description: "Slide heading, max 80 chars" },
-              bodyText: { type: "string", description: "Slide body text, max 150 chars" },
-              imagePrompt: { type: "string", description: "Visual concept for this slide" },
-            },
-            required: ["slideNumber", "heading", "bodyText", "imagePrompt"],
+    required: ["title", "hookLine", "bodyText", "hashtags", "imagePrompt", "estimatedReadTime"],
+  }),
+
+  carousel: makeTool("create_carousel", "Create a structured LinkedIn carousel from diary content", {
+    type: "object",
+    properties: {
+      title: { type: "string", description: "Carousel series title" },
+      caption: { type: "string", description: "Post caption accompanying the carousel" },
+      slides: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            slideNumber: { type: "number" },
+            heading: { type: "string", description: "Slide heading, max 80 chars" },
+            bodyText: { type: "string", description: "Slide body text, max 150 chars" },
+            imagePrompt: { type: "string", description: "Visual concept for this slide" },
           },
-          description: "4-10 carousel slides",
+          required: ["slideNumber", "heading", "bodyText", "imagePrompt"],
         },
-        hashtags: { type: "array", items: { type: "string" }, description: "3-5 relevant hashtags without #" },
+        description: "4-10 carousel slides",
       },
-      required: ["title", "caption", "slides", "hashtags"],
+      hashtags: { type: "array", items: { type: "string" }, description: "3-5 relevant hashtags without #" },
     },
-  },
-  thread: {
-    name: "create_thread",
-    description: "Create a structured X thread from diary content",
-    input_schema: {
-      type: "object",
-      properties: {
-        title: { type: "string", description: "Thread topic title" },
-        tweets: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              order: { type: "number" },
-              text: { type: "string", description: "Tweet text, max 280 characters" },
-            },
-            required: ["order", "text"],
+    required: ["title", "caption", "slides", "hashtags"],
+  }),
+
+  thread: makeTool("create_thread", "Create a structured X thread from diary content", {
+    type: "object",
+    properties: {
+      title: { type: "string", description: "Thread topic title" },
+      tweets: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            order: { type: "number" },
+            text: { type: "string", description: "Tweet text, max 280 characters" },
           },
-          description: "4-10 tweets forming the thread",
+          required: ["order", "text"],
         },
-        imagePrompt: { type: "string", description: "Visual concept for the first tweet image" },
+        description: "4-10 tweets forming the thread",
       },
-      required: ["title", "tweets", "imagePrompt"],
+      imagePrompt: { type: "string", description: "Visual concept for the first tweet image" },
     },
-  },
-  single_post: {
-    name: "create_single_post",
-    description: "Create a single X post from diary content",
-    input_schema: {
-      type: "object",
-      properties: {
-        title: { type: "string" },
-        bodyText: { type: "string", description: "Tweet text, max 280 characters" },
-        hashtags: { type: "array", items: { type: "string" }, description: "0-2 hashtags" },
-        imagePrompt: { type: "string", description: "Visual concept for the post image" },
-      },
-      required: ["title", "bodyText", "hashtags", "imagePrompt"],
+    required: ["title", "tweets", "imagePrompt"],
+  }),
+
+  single_post: makeTool("create_single_post", "Create a single X post from diary content", {
+    type: "object",
+    properties: {
+      title: { type: "string" },
+      bodyText: { type: "string", description: "Tweet text, max 280 characters" },
+      hashtags: { type: "array", items: { type: "string" }, description: "0-2 hashtags" },
+      imagePrompt: { type: "string", description: "Visual concept for the post image" },
     },
-  },
-  reel_caption: {
-    name: "create_reel_caption",
-    description: "Create an Instagram Reel caption and concept from diary content",
-    input_schema: {
-      type: "object",
-      properties: {
-        title: { type: "string" },
-        caption: { type: "string", description: "Instagram caption, 100-150 words" },
-        conceptDescription: { type: "string", description: "Description of what the reel video should show" },
-        hashtags: { type: "array", items: { type: "string" }, description: "5-10 hashtags without #" },
-      },
-      required: ["title", "caption", "conceptDescription", "hashtags"],
+    required: ["title", "bodyText", "hashtags", "imagePrompt"],
+  }),
+
+  reel_caption: makeTool("create_reel_caption", "Create an Instagram Reel caption and concept from diary content", {
+    type: "object",
+    properties: {
+      title: { type: "string" },
+      caption: { type: "string", description: "Instagram caption, 100-150 words" },
+      conceptDescription: { type: "string", description: "Description of what the reel video should show" },
+      hashtags: { type: "array", items: { type: "string" }, description: "5-10 hashtags without #" },
     },
-  },
+    required: ["title", "caption", "conceptDescription", "hashtags"],
+  }),
 };

@@ -3,6 +3,17 @@ import { AppError, handleError } from "../_shared/errors.ts";
 import { logger } from "../_shared/logger.ts";
 import { supabaseAdmin } from "../_shared/supabaseAdmin.ts";
 import { GenerateContentRequestSchema } from "../_shared/validators.ts";
+import {
+  callOpenRouter,
+  extractToolUse,
+  MODELS,
+  type ChatMessage,
+} from "../_shared/openrouter.ts";
+import {
+  embedText,
+  findSimilarEntries,
+  isEmbeddingEnabled,
+} from "../_shared/embeddings.ts";
 import type { ContentType, DiaryEntry, ContentWritingProfile } from "../_shared/types.ts";
 import {
   buildLinkedInPostPrompt,
@@ -13,8 +24,7 @@ import {
 } from "./prompts.ts";
 import { contentTools } from "./schemas.ts";
 
-const CLAUDE_API_URL = "https://api.anthropic.com/v1/messages";
-const CLAUDE_MODEL = "claude-sonnet-4-6";
+const MODEL = MODELS.CONTENT_GENERATION;
 
 function selectPromptBuilder(
   contentType: ContentType,
@@ -24,6 +34,7 @@ function selectPromptBuilder(
   writingProfile: ContentWritingProfile | null;
   recentEntries: DiaryEntry[];
   industry: string;
+  userPersona?: Record<string, unknown> | null;
 }) => { system: string; user: string } {
   if (platform === "x" && contentType === "post") return buildTweetPrompt;
   if (platform === "x" && contentType === "thread") return buildThreadPrompt;
@@ -73,7 +84,6 @@ Deno.serve(async (req: Request) => {
     }
     const { userId, diaryEntryId, platform, contentType } = parseResult.data;
 
-    // Enforce that the requesting user matches userId
     if (user.id !== userId) throw new AppError("Forbidden", 403);
 
     logger.info("Content generation started", {
@@ -104,6 +114,13 @@ Deno.serve(async (req: Request) => {
       .eq("platform", platform)
       .maybeSingle();
 
+    // Fetch user persona for richer content
+    const { data: personaData } = await supabaseAdmin
+      .from("user_persona")
+      .select("company_name, job_title, personality_traits, communication_style, writing_tone, interests, values, founder_story, biggest_challenges, content_themes, audience_connection_style")
+      .eq("user_id", userId)
+      .maybeSingle();
+
     // Fetch user profile for industry
     const { data: profile } = await supabaseAdmin
       .from("profiles")
@@ -113,65 +130,83 @@ Deno.serve(async (req: Request) => {
 
     const industry = profile?.industry ?? "technology";
 
-    // Fetch last 3 diary entries for context
-    const { data: recentEntries } = await supabaseAdmin
-      .from("diary_entries")
-      .select("id, entry_date, text_content, transcription_text")
-      .eq("user_id", userId)
-      .neq("id", diaryEntryId)
-      .order("entry_date", { ascending: false })
-      .limit(3);
+    // RAG: semantic retrieval of relevant diary entries (falls back to chronological)
+    let recentEntries: DiaryEntry[] = [];
+    let retrievalMethod = "chronological";
+
+    if (isEmbeddingEnabled()) {
+      try {
+        const queryEmbedding = await embedText(diaryText);
+        const similar = await findSimilarEntries(
+          supabaseAdmin,
+          queryEmbedding,
+          userId,
+          diaryEntryId,
+          5,
+        );
+
+        if (similar.length >= 3) {
+          recentEntries = similar as unknown as DiaryEntry[];
+          retrievalMethod = "semantic";
+        }
+      } catch (err) {
+        logger.warn("Semantic retrieval failed — falling back to chronological", {
+          functionName,
+          userId,
+          metadata: { error: err instanceof Error ? err.message : String(err) },
+        });
+      }
+    }
+
+    // Fallback: chronological last 3 if semantic retrieval unavailable or insufficient
+    if (retrievalMethod === "chronological") {
+      const { data: chronoEntries } = await supabaseAdmin
+        .from("diary_entries")
+        .select("id, entry_date, text_content, transcription_text")
+        .eq("user_id", userId)
+        .neq("id", diaryEntryId)
+        .order("entry_date", { ascending: false })
+        .limit(3);
+      recentEntries = (chronoEntries ?? []) as DiaryEntry[];
+    }
+
+    logger.info("Context entries retrieved", {
+      functionName,
+      userId,
+      metadata: { method: retrievalMethod, count: recentEntries.length },
+    });
 
     // Build prompt
     const promptBuilder = selectPromptBuilder(contentType, platform);
     const { system, user: userMessage } = promptBuilder({
       diaryText,
       writingProfile: writingProfile ?? null,
-      recentEntries: (recentEntries ?? []) as DiaryEntry[],
+      recentEntries,
       industry,
+      userPersona: personaData ?? null,
     });
 
     const tool = selectTool(contentType, platform);
 
-    // Call Claude API
-    const anthropicApiKey = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!anthropicApiKey) throw new AppError("ANTHROPIC_API_KEY not configured", 500);
+    // Call OpenRouter
+    const messages: ChatMessage[] = [
+      { role: "system", content: system },
+      { role: "user", content: userMessage },
+    ];
 
-    const claudeResponse = await fetch(CLAUDE_API_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": anthropicApiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: CLAUDE_MODEL,
-        max_tokens: 2048,
-        system,
-        messages: [{ role: "user", content: userMessage }],
+    const response = await callOpenRouter(
+      {
+        model: MODEL,
+        messages,
         tools: [tool],
-        tool_choice: { type: "tool", name: tool.name },
-      }),
-    });
-
-    if (!claudeResponse.ok) {
-      const claudeError = await claudeResponse.text();
-      logger.error("Claude API error", {
-        functionName,
-        userId,
-        metadata: { status: claudeResponse.status, body: claudeError },
-      });
-      throw new AppError("Content generation service error", 502);
-    }
-
-    const claudeResult = await claudeResponse.json();
-    const toolUseBlock = claudeResult.content?.find(
-      (block: { type: string }) => block.type === "tool_use"
+        tool_choice: { type: "function", function: { name: tool.function.name } },
+        max_tokens: 2048,
+      },
+      { functionName, userId },
     );
 
-    if (!toolUseBlock) throw new AppError("No content generated by AI", 500);
-
-    const toolInput = toolUseBlock.input as Record<string, unknown>;
+    const toolInput = extractToolUse(response);
+    if (!toolInput) throw new AppError("No content generated by AI", 500);
 
     // Build the post record
     const bodyText = buildBodyText(contentType, toolInput);
@@ -198,8 +233,8 @@ Deno.serve(async (req: Request) => {
         image_prompt: imagePrompt,
         status: "draft",
         generation_metadata: {
-          model: CLAUDE_MODEL,
-          tool: tool.name,
+          model: MODEL,
+          tool: tool.function.name,
           generatedAt: new Date().toISOString(),
         },
       })

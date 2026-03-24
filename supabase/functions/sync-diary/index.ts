@@ -3,6 +3,7 @@ import { AppError, handleError } from "../_shared/errors.ts";
 import { logger } from "../_shared/logger.ts";
 import { supabaseAdmin } from "../_shared/supabaseAdmin.ts";
 import { SyncDiaryRequestSchema } from "../_shared/validators.ts";
+import { embedMissingEntries } from "../_shared/embeddings.ts";
 
 const FUNCTION_NAME = "sync-diary";
 const DISCOVERY_UNLOCK_THRESHOLD = 7;
@@ -164,6 +165,26 @@ Deno.serve(async (req: Request) => {
         uniqueDateCount,
         discoveryUnlocked,
       },
+    });
+
+    // Fire-and-forget persona rebuild — don't await, don't fail if this errors
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+    fetch(`${supabaseUrl}/functions/v1/build-user-persona`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ user_id: user.id }),
+    }).catch(() => {}); // intentionally swallow errors
+
+    // Fire-and-forget: compute embeddings for entries that don't have one yet (RAG support)
+    embedMissingEntries(supabaseAdmin, user.id).catch((err) => {
+      logger.warn("Embedding computation failed — RAG will use chronological fallback", {
+        functionName: FUNCTION_NAME,
+        userId: user.id,
+        metadata: { error: err instanceof Error ? err.message : String(err) },
+      });
     });
 
     return new Response(

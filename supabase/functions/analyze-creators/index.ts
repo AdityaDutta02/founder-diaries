@@ -4,9 +4,15 @@ import { logger } from "../_shared/logger.ts";
 import { supabaseAdmin } from "../_shared/supabaseAdmin.ts";
 import { AnalyzeCreatorsRequestSchema } from "../_shared/validators.ts";
 import { buildAnalysisPrompt } from "./prompts.ts";
+import {
+  callOpenRouter,
+  extractToolUse,
+  convertTool,
+  MODELS,
+  type ChatMessage,
+} from "../_shared/openrouter.ts";
 
-const CLAUDE_API_URL = "https://api.anthropic.com/v1/messages";
-const CLAUDE_MODEL = "claude-sonnet-4-6";
+const MODEL = MODELS.CONTENT_GENERATION;
 const TOP_SAMPLES_LIMIT = 50;
 
 const WritingProfileTool = {
@@ -70,6 +76,8 @@ const WritingProfileTool = {
     ],
   },
 };
+
+const openAITool = convertTool(WritingProfileTool);
 
 Deno.serve(async (req: Request) => {
   const corsResponse = handleCors(req);
@@ -140,52 +148,25 @@ Deno.serve(async (req: Request) => {
 
     const { system, user: userMessage } = buildAnalysisPrompt(platform, samples);
 
-    // Call Claude API
-    const anthropicApiKey = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!anthropicApiKey) throw new AppError("ANTHROPIC_API_KEY not configured", 500);
+    // Call OpenRouter with Claude Sonnet 4 (needs tool use)
+    const messages: ChatMessage[] = [
+      { role: "system", content: system },
+      { role: "user", content: userMessage },
+    ];
 
-    const claudeResponse = await fetch(CLAUDE_API_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": anthropicApiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: CLAUDE_MODEL,
+    const response = await callOpenRouter(
+      {
+        model: MODEL,
+        messages,
+        tools: [openAITool],
+        tool_choice: { type: "function", function: { name: WritingProfileTool.name } },
         max_tokens: 2048,
-        system,
-        messages: [{ role: "user", content: userMessage }],
-        tools: [WritingProfileTool],
-        tool_choice: { type: "tool", name: WritingProfileTool.name },
-      }),
-    });
-
-    if (!claudeResponse.ok) {
-      const claudeError = await claudeResponse.text();
-      logger.error("Claude API error during analysis", {
-        functionName,
-        userId,
-        metadata: { status: claudeResponse.status, body: claudeError },
-      });
-      throw new AppError("Analysis service error", 502);
-    }
-
-    const claudeResult = await claudeResponse.json();
-    const toolUseBlock = claudeResult.content?.find(
-      (block: { type: string }) => block.type === "tool_use"
+      },
+      { functionName, userId },
     );
 
-    if (!toolUseBlock) throw new AppError("No analysis result from AI", 500);
-
-    const profileData = toolUseBlock.input as {
-      tone_description: string;
-      vocabulary_notes: string;
-      format_patterns: Record<string, unknown>;
-      structural_patterns: Record<string, unknown>;
-      example_hooks: string[];
-      hashtag_strategy: Record<string, unknown>;
-    };
+    const profileData = extractToolUse(response);
+    if (!profileData) throw new AppError("No analysis result from AI", 500);
 
     // Upsert writing profile
     const { data: writingProfile, error: upsertError } = await supabaseAdmin
@@ -194,13 +175,13 @@ Deno.serve(async (req: Request) => {
         {
           user_id: userId,
           platform,
-          tone_description: profileData.tone_description,
-          vocabulary_notes: profileData.vocabulary_notes,
-          format_patterns: profileData.format_patterns,
-          structural_patterns: profileData.structural_patterns,
-          example_hooks: profileData.example_hooks,
-          hashtag_strategy: profileData.hashtag_strategy,
-          generated_by_model: CLAUDE_MODEL,
+          tone_description: profileData.tone_description as string,
+          vocabulary_notes: profileData.vocabulary_notes as string,
+          format_patterns: profileData.format_patterns as Record<string, unknown>,
+          structural_patterns: profileData.structural_patterns as Record<string, unknown>,
+          example_hooks: profileData.example_hooks as string[],
+          hashtag_strategy: profileData.hashtag_strategy as Record<string, unknown>,
+          generated_by_model: MODEL,
           last_refreshed: new Date().toISOString(),
         },
         { onConflict: "user_id,platform" }
