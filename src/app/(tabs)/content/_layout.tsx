@@ -17,10 +17,7 @@ export default function ContentLayout() {
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen
         name="[postId]"
-        options={{
-          title: 'Post',
-          headerShown: true,
-        }}
+        options={{ headerShown: false }}
       />
       <Stack.Screen
         name="queue"

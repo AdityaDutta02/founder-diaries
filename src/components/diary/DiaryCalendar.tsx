@@ -209,55 +209,49 @@ export const DiaryCalendar = memo(function DiaryCalendar({
               : colors.textSecondary;
 
           return (
-            <Pressable
-              key={dateStr}
-              onPress={() => handleSelectDay(date)}
-              style={{
-                width: `${100 / 7}%`,
-                aspectRatio: 1,
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderRadius: borderRadius.full,
-                ...(circleBg ? { backgroundColor: circleBg } : {}),
-                ...(isSelected && !isTodayDate
-                  ? {
-                      borderWidth: 1.5,
-                      borderColor: colors.accent,
-                      borderRadius: borderRadius.full,
-                    }
-                  : {}),
-              }}
-              accessibilityRole="button"
-              accessibilityLabel={format(date, 'MMMM d, yyyy')}
-              accessibilityState={{ selected: isSelected }}
-              testID={`calendar-day-${dateStr}`}
-            >
-              <Text
+            <View key={dateStr} style={{ width: `${100 / 7}%`, alignItems: 'center', paddingVertical: 2 }}>
+              <Pressable
+                onPress={() => handleSelectDay(date)}
                 style={{
-                  fontFamily: fontFamily.medium,
-                  fontSize: 13,
-                  lineHeight: 16,
-                  color: textColor,
-                  opacity: isFuture && !isTodayDate ? 0.4 : 1,
+                  width: 36,
+                  height: 36,
+                  borderRadius: 18,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  overflow: 'hidden',
+                  ...(circleBg ? { backgroundColor: circleBg } : {}),
+                  ...(isSelected && !isTodayDate
+                    ? { borderWidth: 1.5, borderColor: colors.accent }
+                    : {}),
                 }}
+                hitSlop={4}
+                accessibilityRole="button"
+                accessibilityLabel={format(date, 'MMMM d, yyyy')}
+                accessibilityState={{ selected: isSelected }}
+                testID={`calendar-day-${dateStr}`}
               >
-                {format(date, 'd')}
-              </Text>
-              {/* Small orange dot below day number for days with entries */}
+                <Text
+                  style={{
+                    fontFamily: fontFamily.medium,
+                    fontSize: 13,
+                    lineHeight: 16,
+                    color: textColor,
+                    opacity: isFuture && !isTodayDate ? 0.4 : 1,
+                  }}
+                >
+                  {format(date, 'd')}
+                </Text>
+              </Pressable>
+              {/* Orange dot below circle for days with entries */}
               {hasEntry && !isTodayDate ? (
                 <View
-                  style={{
-                    position: 'absolute',
-                    bottom: 3,
-                    width: 4,
-                    height: 4,
-                    borderRadius: 2,
-                    backgroundColor: colors.accent,
-                  }}
+                  style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: colors.accent, marginTop: 2 }}
                   testID={`entry-dot-${dateStr}`}
                 />
-              ) : null}
-            </Pressable>
+              ) : (
+                <View style={{ height: 4, marginTop: 2 }} />
+              )}
+            </View>
           );
         })}
       </View>

@@ -261,8 +261,48 @@ DELETE FROM platform_configs WHERE user_id = uid;
 
 INSERT INTO platform_configs (user_id, platform, active, weekly_post_quota, preferred_content_types) VALUES
 (uid, 'linkedin', true, 5, ARRAY['post', 'carousel']),
-(uid, 'x', true, 7, ARRAY['post', 'thread']),
-(uid, 'instagram', true, 3, ARRAY['reel_caption']);
+(uid, 'x', true, 7, ARRAY['post', 'thread']);
+
+-- ═══════════════════════════════════════════════════════════
+-- 5b. CREATOR PROFILES — sample creators for Discover tab
+-- ═══════════════════════════════════════════════════════════
+
+DELETE FROM creator_profiles WHERE user_id = uid;
+
+INSERT INTO creator_profiles (user_id, platform, creator_handle, creator_name, follower_count, bio, relevance_score) VALUES
+-- LinkedIn
+(uid, 'linkedin', 'justinwelsh', 'Justin Welsh', 750000, 'Solo entrepreneur. Built a $5M/year one-person business. Write about systems, leverage, and solopreneurship.', 0.92),
+(uid, 'linkedin', 'sahilbloom', 'Sahil Bloom', 1200000, 'Exploring curiosity. Writing about decision-making, frameworks, and the human side of business.', 0.88),
+(uid, 'linkedin', 'jaaborisov', 'Jasmin Alic', 420000, 'LinkedIn ghostwriter turned personal branding expert. Teaching founders how to tell better stories.', 0.85),
+-- X
+(uid, 'x', 'levelsio', 'Pieter Levels', 530000, 'Building 12 startups in 12 months. Nomad. Bootstrapper. Maker.', 0.95),
+(uid, 'x', 'marc_louvion', 'Marc Lou', 180000, 'Shipped 7 profitable products. Building in public. SaaS and indie hacking.', 0.90),
+(uid, 'x', 'dannypostmaa', 'Danny Postma', 120000, 'Indie maker. Built Headshot Pro to $1M ARR. AI tools and bootstrapping.', 0.88);
+
+-- ═══════════════════════════════════════════════════════════
+-- 5c. WRITING PROFILES — for Your Voice tab
+-- ═══════════════════════════════════════════════════════════
+
+DELETE FROM content_writing_profiles WHERE user_id = uid;
+
+INSERT INTO content_writing_profiles (user_id, platform, tone_description, vocabulary_notes, format_patterns, structural_patterns, example_hooks, hashtag_strategy, generated_by_model, last_refreshed) VALUES
+(uid, 'linkedin',
+ 'Conversational and reflective. Mixes vulnerability with practical insight. Uses short paragraphs and strategic line breaks for readability. Avoids corporate jargon.',
+ 'Frequently uses: "here''s the thing", "honestly", parenthetical asides (like this), em dashes. Prefers "shipped" over "launched", "built" over "developed". Writes in first person.',
+ '{"openingStyle": "Hook question or bold statement", "paragraphLength": "2-3 sentences max", "useOfLists": "Arrow-prefixed lists (→) for key points", "lineBreaks": "Double line break between sections", "closingStyle": "Reflective one-liner + hashtags"}',
+ '{"hookTypes": ["contrarian take", "vulnerable admission", "specific metric + surprise"], "bodyStructure": "hook → context → insight → reflection", "ctaPatterns": ["What''s your take?", "Have you experienced this?", "Drop your thoughts below"], "contentRatio": "60% story, 30% insight, 10% CTA"}',
+ ARRAY['My partner asked me what I''d do if this fails.', 'Every SaaS founder says "charge more." But what if your users can''t afford it yet?', 'She called me screaming "IT WORKS." Here''s what happened.'],
+ '{"averageCount": 4, "broadToNicheRatio": "60/40", "placement": "end of post", "exampleHashtags": ["#buildinginpublic", "#founderstory", "#startuplife", "#indiehacker", "#saas"]}',
+ 'anthropic/claude-sonnet-4', NOW()),
+
+(uid, 'x',
+ 'Punchy and direct. Uses short declarative sentences. Mixes founder wisdom with specific numbers and examples. Conversational but not sloppy.',
+ 'Prefers short words: "ship" not "deliver", "build" not "construct". Uses colons and em dashes. Avoids hashtags in tweets (uses them sparingly in threads). Numbers always specific, never rounded.',
+ '{"openingStyle": "Bold claim or specific number", "paragraphLength": "1-2 sentences", "useOfLists": "Rarely in single tweets, numbered in threads", "lineBreaks": "One line break between thoughts", "closingStyle": "Mic-drop one-liner"}',
+ '{"hookTypes": ["specific metric", "contrarian opinion", "mini-story opener"], "bodyStructure": "claim → proof → punchline", "ctaPatterns": ["rarely used — lets content speak"], "contentRatio": "80% insight, 20% story"}',
+ ARRAY['Someone DMed me asking "how did you write that post about founder loneliness?" It was AI-generated from a 2-minute diary entry.', 'Shipped semantic retrieval. Context that actually matters > chronological filler.', '2 weeks. 15 users. 60% daily active. The diary IS the engine.'],
+ '{"averageCount": 0, "broadToNicheRatio": "N/A", "placement": "none", "exampleHashtags": []}',
+ 'anthropic/claude-sonnet-4', NOW());
 
 -- ═══════════════════════════════════════════════════════════
 -- 6. GENERATED POSTS — 12 posts across platforms
@@ -394,19 +434,6 @@ CURRENT_DATE - 3),
 '{"model": "anthropic/claude-sonnet-4", "tool": "create_carousel", "generatedAt": "2026-03-17T12:00:00Z"}',
 CURRENT_DATE - 16),
 
--- Instagram reel captions
-(uid, e12, 'instagram', 'reel_caption', 'Building a Premium Audio Recorder',
-'rebuilt the audio recorder from scratch today. 28 animated waveform bars, half-sheet modal, live timer. small details that make the whole experience feel premium. this is the stuff no one sees but everyone feels ✨ #buildinginpublic #uxdesign #mobiledev #indiehacker #startup',
-'draft',
-'{"model": "anthropic/claude-sonnet-4", "tool": "create_reel_caption", "generatedAt": "2026-03-18T13:00:00Z"}',
-CURRENT_DATE - 14),
-
-(uid, e28, 'instagram', 'reel_caption', 'Audio Journaling > Typing',
-'recorded today''s diary entry while walking. whisper transcription nailed it even with street noise. morning entries = audio. evening reflections = text. find what works for you 🎙️ #journaling #founderlife #buildinginpublic #productdev #morningroutine',
-'approved',
-'{"model": "anthropic/claude-sonnet-4", "tool": "create_reel_caption", "generatedAt": "2026-03-20T18:30:00Z"}',
-CURRENT_DATE - 6),
-
 -- Rejected post
 (uid, e04, 'linkedin', 'post', 'Pricing Thoughts',
 'Every SaaS founder says "charge more." But what if your users can''t afford it yet? Here''s my controversial take on free tiers...',
@@ -421,14 +448,13 @@ CURRENT_DATE - 18);
 DELETE FROM user_activity_log WHERE user_id = uid;
 
 INSERT INTO user_activity_log (user_id, action, metadata, created_at) VALUES
-(uid, 'onboarding_completed', '{"industry": "SaaS", "platforms": ["linkedin", "x", "instagram"]}', CURRENT_DATE - 20),
+(uid, 'onboarding_completed', '{"industry": "SaaS", "platforms": ["linkedin", "x"]}', CURRENT_DATE - 20),
 (uid, 'discovery_unlocked', '{"uniqueDiaryDays": 7}', CURRENT_DATE - 14),
 (uid, 'persona_built', '{"confidenceScore": 0.35, "entryCount": 14}', CURRENT_DATE - 14),
 (uid, 'persona_rebuilt', '{"confidenceScore": 0.52, "entryCount": 25}', CURRENT_DATE - 10),
 (uid, 'persona_rebuilt', '{"confidenceScore": 0.78, "entryCount": 45}', CURRENT_DATE - 1),
 (uid, 'first_post_approved', '{"platform": "linkedin", "postId": "generated"}', CURRENT_DATE - 10),
 (uid, 'content_generated', '{"platform": "linkedin", "count": 5}', CURRENT_DATE - 8),
-(uid, 'content_generated', '{"platform": "x", "count": 4}', CURRENT_DATE - 5),
-(uid, 'content_generated', '{"platform": "instagram", "count": 3}', CURRENT_DATE - 3);
+(uid, 'content_generated', '{"platform": "x", "count": 4}', CURRENT_DATE - 5);
 
 END $$;

@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { supabase } from '@/lib/supabase';
+import { logger } from '@/lib/logger';
 
 export interface CarouselSlide {
   slideNumber: number;
@@ -57,6 +59,7 @@ interface ContentActions {
   getPostsByStatus: (status: GeneratedPost['status']) => GeneratedPost[];
   getPostsByPlatform: (platform: GeneratedPost['platform']) => GeneratedPost[];
   getWeeklyQuota: () => WeeklyQuotaEntry[];
+  fetchPosts: (userId: string) => Promise<void>;
 }
 
 export type ContentStore = ContentState & ContentActions;
@@ -100,6 +103,26 @@ export const useContentStore = create<ContentStore>()((set, get) => ({
   getPostsByPlatform: (platform) => {
     const { posts } = get();
     return posts.filter((post) => post.platform === platform);
+  },
+
+  fetchPosts: async (userId) => {
+    try {
+      const { data, error } = await supabase
+        .from('generated_posts')
+        .select('id, user_id, diary_entry_id, platform, content_type, title, body_text, carousel_slides, thread_tweets, image_prompt, generated_image_url, user_image_id, status, scheduled_for, generation_metadata, user_edits, created_at, updated_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        logger.error('Failed to fetch posts', { error: error.message });
+        return;
+      }
+      set({ posts: (data ?? []) as GeneratedPost[] });
+    } catch (err) {
+      logger.error('Unexpected error fetching posts', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
   },
 
   getWeeklyQuota: () => {

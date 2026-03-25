@@ -42,18 +42,10 @@ export const SinglePostSchema = z.object({
   imagePrompt: z.string().min(1).max(300),
 });
 
-export const ReelCaptionSchema = z.object({
-  title: z.string().min(1).max(100),
-  caption: z.string().min(50).max(800),
-  conceptDescription: z.string().min(1).max(500),
-  hashtags: z.array(z.string()).min(5).max(10),
-});
-
 export type LinkedInPost = z.infer<typeof LinkedInPostSchema>;
 export type Carousel = z.infer<typeof CarouselSchema>;
 export type Thread = z.infer<typeof ThreadSchema>;
 export type SinglePost = z.infer<typeof SinglePostSchema>;
-export type ReelCaption = z.infer<typeof ReelCaptionSchema>;
 
 // OpenAI-format tool definitions for OpenRouter
 function makeTool(
@@ -134,14 +126,4 @@ export const contentTools = {
     required: ["title", "bodyText", "hashtags", "imagePrompt"],
   }),
 
-  reel_caption: makeTool("create_reel_caption", "Create an Instagram Reel caption and concept from diary content", {
-    type: "object",
-    properties: {
-      title: { type: "string" },
-      caption: { type: "string", description: "Instagram caption, 100-150 words" },
-      conceptDescription: { type: "string", description: "Description of what the reel video should show" },
-      hashtags: { type: "array", items: { type: "string" }, description: "5-10 hashtags without #" },
-    },
-    required: ["title", "caption", "conceptDescription", "hashtags"],
-  }),
 };

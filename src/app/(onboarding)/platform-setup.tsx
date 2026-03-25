@@ -35,17 +35,7 @@ const PLATFORMS: PlatformConfig[] = [
     emoji: '💼',
     contentTypes: [
       { id: 'post', label: 'Post' },
-      { id: 'carousel', label: 'Carousel' },
-    ],
-  },
-  {
-    id: 'instagram',
-    name: 'Instagram',
-    emoji: '📸',
-    contentTypes: [
-      { id: 'post', label: 'Post' },
-      { id: 'carousel', label: 'Carousel' },
-      { id: 'reel_caption', label: 'Reel Caption' },
+      { id: 'carousel', label: 'Carousel (Coming Soon)' },
     ],
   },
   {
@@ -53,7 +43,7 @@ const PLATFORMS: PlatformConfig[] = [
     name: 'X (Twitter)',
     emoji: '🐦',
     contentTypes: [
-      { id: 'tweet', label: 'Tweet' },
+      { id: 'post', label: 'Post' },
       { id: 'thread', label: 'Thread' },
     ],
   },
@@ -105,7 +95,7 @@ export default function PlatformSetupScreen() {
     );
 
     router.push({
-      pathname: '/(onboarding)/quota-config',
+      pathname: '/(onboarding)/image-style',
       params: {
         industry: params.industry ?? '',
         keywords: params.keywords ?? '[]',

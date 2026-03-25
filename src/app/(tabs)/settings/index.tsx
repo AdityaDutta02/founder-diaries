@@ -218,6 +218,13 @@ export default function SettingsScreen() {
             />
             <View style={[styles.divider, { backgroundColor: colors.border }]} />
             <MenuRow
+              icon="🎨"
+              label="Image Style"
+              onPress={() => router.push('/(onboarding)/image-style' as never)}
+              testID="menu-image-style"
+            />
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+            <MenuRow
               icon="👤"
               label="Account Details"
               onPress={() => router.push('/(tabs)/settings/account')}

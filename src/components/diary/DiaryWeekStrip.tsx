@@ -62,25 +62,25 @@ export const DiaryWeekStrip = memo(function DiaryWeekStrip({
       style={[styles.container, { backgroundColor: colors.surface, borderColor: colors.border }]}
       testID={testID ?? 'diary-week-strip'}
     >
-      {/* Header: month label + expand chevron + week nav arrows */}
-      <View style={styles.header}>
-        <Pressable
-          onPress={toggleExpanded}
-          style={styles.monthBtn}
-          accessibilityRole="button"
-          accessibilityLabel={expanded ? 'Collapse to week view' : 'Expand to month view'}
-          hitSlop={8}
-          testID="week-strip-month-label"
-        >
-          <Text style={[styles.monthLabel, { color: colors.textPrimary }]}>
-            {monthLabel}
-          </Text>
-          <Text style={[styles.expandChevron, { color: colors.textMuted }]}>
-            {expanded ? ' ▲' : ' ▼'}
-          </Text>
-        </Pressable>
+      {/* Header: month label + expand chevron + week nav arrows (hidden when expanded — calendar has its own) */}
+      {!expanded && (
+        <View style={styles.header}>
+          <Pressable
+            onPress={toggleExpanded}
+            style={styles.monthBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Expand to month view"
+            hitSlop={8}
+            testID="week-strip-month-label"
+          >
+            <Text style={[styles.monthLabel, { color: colors.textPrimary }]}>
+              {monthLabel}
+            </Text>
+            <Text style={[styles.expandChevron, { color: colors.textMuted }]}>
+              {' ▼'}
+            </Text>
+          </Pressable>
 
-        {!expanded && (
           <View style={styles.navRow}>
             <Pressable
               onPress={goToPrevWeek}
@@ -103,18 +103,30 @@ export const DiaryWeekStrip = memo(function DiaryWeekStrip({
               <Text style={[styles.navArrow, { color: colors.textMuted }]}>{'›'}</Text>
             </Pressable>
           </View>
-        )}
-      </View>
+        </View>
+      )}
 
       {/* Week strip (swipeable) or expanded month calendar */}
       {expanded ? (
-        <DiaryCalendar
-          selectedDate={selectedDate}
-          onSelectDate={onSelectDate}
-          entryDates={entryDates}
-          currentMonth={currentMonth}
-          onChangeMonth={onChangeMonth}
-        />
+        <>
+          <DiaryCalendar
+            selectedDate={selectedDate}
+            onSelectDate={onSelectDate}
+            entryDates={entryDates}
+            currentMonth={currentMonth}
+            onChangeMonth={onChangeMonth}
+          />
+          <Pressable
+            onPress={toggleExpanded}
+            style={styles.collapseBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Collapse to week view"
+            hitSlop={8}
+            testID="calendar-collapse-btn"
+          >
+            <Text style={[styles.expandChevron, { color: colors.textMuted }]}>{'▲'}</Text>
+          </Pressable>
+        </>
       ) : (
         <GestureDetector gesture={swipeGesture}>
           <View style={styles.weekRow} testID="week-strip-row">
@@ -182,15 +194,13 @@ export const DiaryWeekStrip = memo(function DiaryWeekStrip({
                     </Text>
                   </View>
 
-                  {/* Entry dot (below circle) */}
-                  <View style={styles.dotSlot}>
-                    {hasEntry && (
-                      <View
-                        style={[styles.entryDot, { backgroundColor: colors.accent }]}
-                        testID={`week-entry-dot-${dateStr}`}
-                      />
-                    )}
-                  </View>
+                  {/* Entry dot (below circle) — no space reserved when empty */}
+                  {hasEntry ? (
+                    <View
+                      style={[styles.entryDot, { backgroundColor: colors.accent, marginTop: 2 }]}
+                      testID={`week-entry-dot-${dateStr}`}
+                    />
+                  ) : null}
                 </Pressable>
               );
             })}
@@ -224,6 +234,10 @@ const styles = StyleSheet.create({
   expandChevron: {
     fontSize: 10,
     lineHeight: 14,
+  },
+  collapseBtn: {
+    alignItems: 'center',
+    paddingVertical: spacing.xs,
   },
   navRow: {
     flexDirection: 'row',
@@ -260,7 +274,7 @@ const styles = StyleSheet.create({
   dayCircle: {
     width: 32,
     height: 32,
-    borderRadius: borderRadius.full,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },

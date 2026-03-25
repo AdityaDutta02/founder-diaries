@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { supabase } from '@/lib/supabase';
+import { logger } from '@/lib/logger';
 
 export interface LocalDiaryImage {
   local_id: string;
@@ -37,6 +39,7 @@ interface DiaryActions {
   getEntriesForDate: (date: string) => LocalDiaryEntry[];
   getEntryDates: () => Set<string>;
   getDaysWithEntries: () => number;
+  hydrateFromSupabase: (userId: string) => Promise<void>;
 }
 
 export type DiaryStore = DiaryState & DiaryActions;
@@ -104,5 +107,43 @@ export const useDiaryStore = create<DiaryStore>()((set, get) => ({
       dates.add(entry.entry_date);
     }
     return dates.size;
+  },
+
+  hydrateFromSupabase: async (userId) => {
+    try {
+      const { data, error } = await supabase
+        .from('diary_entries')
+        .select('id, entry_date, text_content, transcription_text, mood, local_id, created_at, updated_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        logger.error('Failed to hydrate diary entries', { error: error.message });
+        return;
+      }
+
+      const entries = new Map<string, LocalDiaryEntry>();
+      for (const row of data ?? []) {
+        const localId = row.local_id ?? row.id;
+        entries.set(localId, {
+          local_id: localId,
+          entry_date: row.entry_date,
+          text_content: row.text_content,
+          audio_local_uri: null,
+          mood: row.mood,
+          sync_status: 'synced',
+          remote_id: row.id,
+          created_at: row.created_at,
+          updated_at: row.updated_at,
+          images: [],
+        });
+      }
+      set({ entries });
+      logger.info('Diary entries hydrated from Supabase', { count: entries.size });
+    } catch (err) {
+      logger.error('Unexpected error hydrating diary', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
   },
 }));

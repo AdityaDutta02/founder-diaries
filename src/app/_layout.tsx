@@ -18,6 +18,8 @@ import { initDatabase } from '@/lib/sqlite';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/lib/logger';
 import { useAuthStore } from '@/stores/authStore';
+import { useDiaryStore } from '@/stores/diaryStore';
+import { useContentStore } from '@/stores/contentStore';
 import { loadPersistedTheme } from '@/stores/themeStore';
 import { ThemeProvider, useTheme } from '@/theme/ThemeContext';
 import { ToastProvider } from '@/components/ui/ToastProvider';
@@ -80,6 +82,9 @@ function RootLayoutInner() {
               } else if (profileData) {
                 setProfile(profileData as Profile);
                 void registerPushToken(currentSession.user.id);
+                // Hydrate stores from Supabase
+                void useDiaryStore.getState().hydrateFromSupabase(currentSession.user.id);
+                void useContentStore.getState().fetchPosts(currentSession.user.id);
               }
             }
           };
@@ -118,6 +123,8 @@ function RootLayoutInner() {
         } else if (profileData) {
           setProfile(profileData as Profile);
           void registerPushToken(newSession.user.id);
+          void useDiaryStore.getState().hydrateFromSupabase(newSession.user.id);
+          void useContentStore.getState().fetchPosts(newSession.user.id);
         }
       } else {
         setProfile(null);
@@ -137,19 +144,15 @@ function RootLayoutInner() {
       return;
     }
 
-    if (profile && !profile.onboarding_completed) {
+    // Session exists but profile still loading — wait, don't redirect
+    if (!profile) return;
+
+    if (!profile.onboarding_completed) {
       router.replace('/(onboarding)/welcome');
       return;
     }
 
-    if (profile?.onboarding_completed) {
-      router.replace('/(tabs)/diary');
-      return;
-    }
-
-    // Session exists but profile couldn't be loaded (network timeout, DB not ready)
-    // Send to sign-in so the user can re-authenticate
-    router.replace('/(auth)/sign-in');
+    router.replace('/(tabs)/diary');
   }, [isLoading, session, profile]);
 
   useEffect(() => {

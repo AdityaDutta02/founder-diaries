@@ -1,5 +1,11 @@
 import type { ContentWritingProfile, DiaryEntry } from "../_shared/types.ts";
 
+export const IMAGE_STYLE_PROMPTS: Record<string, string> = {
+  professional: 'Clean, modern corporate graphic with subtle gradients, geometric shapes, and professional icons. No faces or photographs. Use a professional color palette with blues, grays, and accent colors.',
+  sketch: 'Hand-drawn whiteboard illustration style. Black line art on white background, rough sketch aesthetic, like a napkin drawing or whiteboard brainstorm. No color fills, just outlines.',
+  minimalist: 'Bold typographic design. Large impactful text on a solid color background. Minimal decorative elements. High contrast, clean negative space.',
+};
+
 interface PromptContext {
   diaryText: string;
   writingProfile: ContentWritingProfile | null;
@@ -201,31 +207,6 @@ Single tweet guidelines:
 "${ctx.diaryText}"
 
 Capture the most shareable, thought-provoking element.`;
-
-  return { system, user };
-}
-
-export function buildReelCaptionPrompt(ctx: PromptContext): { system: string; user: string } {
-  const profileInstructions = buildWritingProfileInstructions(ctx.writingProfile);
-  const personaSection = buildPersonaSection(ctx.userPersona);
-  const recentContext = buildRecentContext(ctx.recentEntries);
-
-  const system = `You are an Instagram Reels content strategist helping a founder in the ${ctx.industry} industry create authentic short-form video content.
-
-${profileInstructions}
-${personaSection ? `\n${personaSection}\n` : ""}
-Instagram Reel caption guidelines:
-- Caption: 100-150 words, conversational
-- Hook in first line (shows before "more" cutoff)
-- Describe what the reel video should show (b-roll concept, talking head points)
-- 5-10 hashtags mixing niche and broad
-- Optional: suggest audio/music vibe`;
-
-  const user = `Transform this diary entry into an Instagram Reel concept and caption:
-
-"${ctx.diaryText}"${recentContext}
-
-Make it feel like a day-in-the-life or behind-the-scenes moment that resonates with aspiring founders.`;
 
   return { system, user };
 }

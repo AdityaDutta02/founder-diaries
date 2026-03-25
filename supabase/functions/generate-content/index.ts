@@ -20,7 +20,6 @@ import {
   buildCarouselPrompt,
   buildThreadPrompt,
   buildTweetPrompt,
-  buildReelCaptionPrompt,
 } from "./prompts.ts";
 import { contentTools } from "./schemas.ts";
 
@@ -39,7 +38,6 @@ function selectPromptBuilder(
   if (platform === "x" && contentType === "post") return buildTweetPrompt;
   if (platform === "x" && contentType === "thread") return buildThreadPrompt;
   if (contentType === "carousel") return buildCarouselPrompt;
-  if (contentType === "reel_caption") return buildReelCaptionPrompt;
   return buildLinkedInPostPrompt;
 }
 
@@ -47,7 +45,6 @@ function selectTool(contentType: ContentType, platform: string) {
   if (platform === "x" && contentType === "thread") return contentTools.thread;
   if (platform === "x" && contentType === "post") return contentTools.single_post;
   if (contentType === "carousel") return contentTools.carousel;
-  if (contentType === "reel_caption") return contentTools.reel_caption;
   return contentTools.linkedin_post;
 }
 

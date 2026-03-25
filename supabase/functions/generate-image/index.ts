@@ -43,14 +43,30 @@ Deno.serve(async (req: Request) => {
     if (postError || !post) throw new AppError("Post not found", 404);
     if (post.user_id !== user.id) throw new AppError("Forbidden", 403);
 
+    // Fetch user's image style preference
+    const { data: profileData } = await supabaseAdmin
+      .from("profiles")
+      .select("image_style")
+      .eq("id", user.id)
+      .single();
+
+    const imageStyle = (profileData?.image_style as string) ?? "professional";
+
+    const STYLE_PROMPTS: Record<string, string> = {
+      professional: "Clean, modern corporate graphic with subtle gradients, geometric shapes, and professional icons. No faces. Professional color palette.",
+      sketch: "Hand-drawn whiteboard illustration style. Black line art on white background, rough sketch aesthetic, like a napkin drawing.",
+      minimalist: "Bold typographic design. Large impactful text on a solid color background. Minimal elements. High contrast.",
+    };
+
     logger.info("Image generation started", {
       functionName,
       userId: user.id,
-      metadata: { postId, aspectRatio },
+      metadata: { postId, aspectRatio, imageStyle },
     });
 
-    // Build the full image prompt
-    const fullPrompt = `Create a professional social media graphic. Topic: ${imagePrompt}. Style: Clean, modern, visually striking. No text overlay. Aspect ratio: ${aspectRatio}. High quality, suitable for professional social media.`;
+    // Build the full image prompt with user's style preference
+    const styleInstruction = STYLE_PROMPTS[imageStyle] ?? STYLE_PROMPTS.professional;
+    const fullPrompt = `${styleInstruction} Topic: ${imagePrompt}. Aspect ratio: ${aspectRatio}. No text overlay. High quality, suitable for professional social media.`;
 
     // Call OpenRouter with Gemini Flash for image generation
     const messages: ChatMessage[] = [

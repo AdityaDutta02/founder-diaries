@@ -36,7 +36,6 @@ const CONTENT_TYPE_LABELS: Record<string, string> = {
   post: 'Post',
   carousel: 'Carousel',
   thread: 'Thread',
-  reel_caption: 'Reel',
 };
 
 function formatDiaryDate(dateStr: string): string {
@@ -146,18 +145,49 @@ export default function PostDetail() {
   }, [post, updatePost]);
 
   const handleRegenerate = useCallback(async () => {
-    if (!postId) return;
+    if (!post) return;
     setIsRegenerating(true);
     try {
-      await contentGenerationService.regeneratePost(postId);
-      await queryClient.invalidateQueries({ queryKey: ['post', postId] });
+      const result = await contentGenerationService.regeneratePost(post.id);
+      // The edge function creates a NEW post — copy its content to this post and delete the new one
+      if (result?.post) {
+        const newPost = result.post;
+        const { error: copyError } = await supabase
+          .from('generated_posts')
+          .update({
+            body_text: newPost.body_text,
+            title: newPost.title,
+            image_prompt: newPost.image_prompt,
+            carousel_slides: newPost.carousel_slides,
+            thread_tweets: newPost.thread_tweets,
+            generation_metadata: newPost.generation_metadata,
+            status: 'draft',
+            generated_image_url: null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', post.id);
+
+        if (!copyError) {
+          // Delete the duplicate new post
+          await supabase.from('generated_posts').delete().eq('id', newPost.id);
+          // Update local store
+          updatePost(post.id, {
+            body_text: newPost.body_text,
+            title: newPost.title,
+            image_prompt: newPost.image_prompt,
+            status: 'draft',
+            generated_image_url: null,
+          });
+          setEditText(newPost.body_text);
+        }
+      }
       toast.show('Post regenerated', 'success');
     } catch {
       toast.show('Failed to regenerate post.', 'error');
     } finally {
       setIsRegenerating(false);
     }
-  }, [postId, queryClient, toast]);
+  }, [post, toast, updatePost]);
 
   const handleUseMyImage = useCallback(() => {
     router.push('/(modals)/image-picker' as never);
@@ -292,8 +322,10 @@ export default function PostDetail() {
         {/* Source reference */}
         {post.diary_entry_id ? (
           <Pressable
+            onPress={() => router.push(`/(tabs)/diary/${post.diary_entry_id}`)}
             style={[styles.sourceRef, { backgroundColor: colors.surface, borderColor: colors.border }]}
             accessibilityRole="button"
+            accessibilityLabel="View source diary entry"
             testID="source-ref"
           >
             <Text style={styles.sourceEmoji}>{'📔'}</Text>
