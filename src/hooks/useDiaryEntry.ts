@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import * as Crypto from 'expo-crypto';
+import { usePostHog } from 'posthog-react-native';
 import { getDatabase } from '@/lib/sqlite';
 import { logger } from '@/lib/logger';
 import { useDiaryStore, type LocalDiaryEntry, type LocalDiaryImage } from '@/stores/diaryStore';
@@ -44,6 +45,7 @@ export function useDiaryEntry(): UseDiaryEntryReturn {
   } = useDiaryStore();
 
   const { session } = useAuthStore();
+  const posthog = usePostHog();
 
   const entries = getEntriesForDate(selectedDate);
   const allEntryDates = getEntryDates();
@@ -123,9 +125,18 @@ export function useDiaryEntry(): UseDiaryEntryReturn {
       }
 
       logger.info('Diary entry created', { localId, imageCount: localImages.length });
+
+      posthog.capture('diary_entry_created', {
+        has_text: Boolean(data.text_content),
+        has_audio: Boolean(data.audio_local_uri),
+        image_count: localImages.length,
+        mood: data.mood ?? null,
+        // NO content, NO user ID, NO email — PII policy
+      });
+
       return newEntry;
     },
-    [addEntry, session],
+    [addEntry, session, posthog],
   );
 
   const updateEntry = useCallback(

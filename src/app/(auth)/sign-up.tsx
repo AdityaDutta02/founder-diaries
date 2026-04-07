@@ -9,6 +9,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { usePostHog } from 'posthog-react-native';
 import { Button, EyeToggle, Input, useToast } from '@/components/ui';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
@@ -41,6 +42,7 @@ function validate(fullName: string, email: string, password: string): FormErrors
 export default function SignUpScreen() {
   const { colors } = useTheme();
   const toast = useToast();
+  const posthog = usePostHog();
   const { setSession, setProfile } = useAuthStore();
 
   const [fullName, setFullName] = useState('');
@@ -91,6 +93,7 @@ export default function SignUpScreen() {
 
         if (data.session) {
           setSession(data.session);
+          posthog.capture('user_signed_up', { method: 'email' });
           const { data: profileData } = await supabase
             .from('profiles')
             .select('id, email, full_name, avatar_url, industry, niche_keywords, onboarding_completed, discovery_unlocked, timezone, created_at, updated_at, diary_start_date, expo_push_token')

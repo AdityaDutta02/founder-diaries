@@ -9,6 +9,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { usePostHog } from 'posthog-react-native';
 import { Button, EyeToggle, Input, useToast } from '@/components/ui';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
@@ -27,6 +28,7 @@ function validate(email: string, password: string): string | null {
 export default function SignInScreen() {
   const { colors } = useTheme();
   const toast = useToast();
+  const posthog = usePostHog();
   const { setSession, setProfile } = useAuthStore();
 
   const [email, setEmail] = useState('');
@@ -64,6 +66,7 @@ export default function SignInScreen() {
 
       if (data.session) {
         setSession(data.session);
+        posthog.capture('user_signed_in', { method: 'email' });
         if (data.user) {
           const { data: profileData } = await supabase
             .from('profiles')

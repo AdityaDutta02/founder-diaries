@@ -2,6 +2,11 @@
 import { renderHook, act } from '@testing-library/react-native';
 import { useDiaryEntry } from '@/hooks/useDiaryEntry';
 
+// Mock PostHog
+jest.mock('posthog-react-native', () => ({
+  usePostHog: () => ({ capture: jest.fn() }),
+}));
+
 // Mock SQLite
 const mockRunAsync = jest.fn().mockResolvedValue(undefined);
 jest.mock('@/lib/sqlite', () => ({
