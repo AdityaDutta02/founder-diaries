@@ -5,6 +5,8 @@ import {
   SpaceGrotesk_700Bold,
 } from '@expo-google-fonts/space-grotesk';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { PostHogProvider } from 'posthog-react-native';
+import { posthog } from '@/lib/posthog';
 import { Slot, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import Constants from 'expo-constants';
@@ -252,17 +254,19 @@ function AppBoot({ children }: { children: React.ReactNode }) {
 
 export default function RootLayout() {
   return (
-    <GestureHandlerRootView style={styles.flex}>
-      <ThemeProvider>
-        <AppBoot>
-          <QueryClientProvider client={queryClient}>
-            <ToastProvider>
-              <RootLayoutInner />
-            </ToastProvider>
-          </QueryClientProvider>
-        </AppBoot>
-      </ThemeProvider>
-    </GestureHandlerRootView>
+    <PostHogProvider client={posthog}>
+      <GestureHandlerRootView style={styles.flex}>
+        <ThemeProvider>
+          <AppBoot>
+            <QueryClientProvider client={queryClient}>
+              <ToastProvider>
+                <RootLayoutInner />
+              </ToastProvider>
+            </QueryClientProvider>
+          </AppBoot>
+        </ThemeProvider>
+      </GestureHandlerRootView>
+    </PostHogProvider>
   );
 }
 
