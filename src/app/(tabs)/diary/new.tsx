@@ -14,13 +14,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Crypto from 'expo-crypto';
 import { format } from 'date-fns';
-import { useDiaryStore } from '@/stores/diaryStore';
-import { useSyncStore } from '@/stores/syncStore';
+import { useDiaryEntry } from '@/hooks/useDiaryEntry';
 import { useUIStore } from '@/stores/uiStore';
 import { useTheme } from '@/theme/ThemeContext';
 import { typography, fontFamily } from '@/theme/typography';
 import { spacing, borderRadius } from '@/theme/spacing';
-import type { LocalDiaryEntry, LocalDiaryImage } from '@/stores/diaryStore';
 
 const MOODS: { emoji: string; label: string }[] = [
   { emoji: '😤', label: 'Frustrated' },
@@ -38,8 +36,7 @@ function todayISO(): string {
 export default function NewEntryScreen() {
   const router = useRouter();
   const { colors } = useTheme();
-  const addEntry = useDiaryStore((state) => state.addEntry);
-  const incrementPending = useSyncStore((state) => state.incrementPending);
+  const { createEntry } = useDiaryEntry();
   const pendingAudioUri = useUIStore((state) => state.pendingAudioUri);
   const setPendingAudioUri = useUIStore((state) => state.setPendingAudioUri);
   const pendingImageUris = useUIStore((state) => state.pendingImageUris);
@@ -49,7 +46,7 @@ export default function NewEntryScreen() {
   const [mood, setMood] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [audioUri, setAudioUri] = useState<string | null>(null);
-  const [images, setImages] = useState<LocalDiaryImage[]>([]);
+  const [images, setImages] = useState<Array<{ local_id: string; local_uri: string }>>([]);
 
   const entryDateTime = format(new Date(), "MMM d, yyyy · h:mm a");
   const hasContent = text.trim().length > 0 || audioUri !== null || images.length > 0;
@@ -66,13 +63,9 @@ export default function NewEntryScreen() {
   // Pick up image URIs saved by the image picker modal
   useEffect(() => {
     if (pendingImageUris.length > 0) {
-      const newImages: LocalDiaryImage[] = pendingImageUris.map((uri) => ({
+      const newImages = pendingImageUris.map((uri) => ({
         local_id: Crypto.randomUUID(),
-        diary_local_id: '',
         local_uri: uri,
-        sync_status: 'pending' as const,
-        remote_id: null,
-        created_at: new Date().toISOString(),
       }));
       setImages((prev) => [...prev, ...newImages]);
       setPendingImageUris([]);
@@ -96,28 +89,13 @@ export default function NewEntryScreen() {
 
     setIsSaving(true);
     try {
-      const localId = Crypto.randomUUID();
-      const now = new Date().toISOString();
-      const entryImages: LocalDiaryImage[] = images.map((img) => ({
-        ...img,
-        diary_local_id: localId,
-      }));
-
-      const entry: LocalDiaryEntry = {
-        local_id: localId,
+      await createEntry({
         entry_date: todayISO(),
-        text_content: text.trim() || null,
-        audio_local_uri: audioUri,
-        mood,
-        sync_status: 'pending',
-        remote_id: null,
-        created_at: now,
-        updated_at: now,
-        images: entryImages,
-      };
-
-      addEntry(entry);
-      incrementPending();
+        text_content: text.trim() || undefined,
+        audio_local_uri: audioUri ?? undefined,
+        mood: mood ?? undefined,
+        images,
+      });
       router.back();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to save entry';
@@ -125,7 +103,7 @@ export default function NewEntryScreen() {
     } finally {
       setIsSaving(false);
     }
-  }, [hasContent, isSaving, text, mood, audioUri, images, addEntry, incrementPending, router]);
+  }, [hasContent, isSaving, text, mood, audioUri, images, createEntry, router]);
 
   const toggleMood = useCallback((label: string) => {
     setMood((prev) => (prev === label ? null : label));
