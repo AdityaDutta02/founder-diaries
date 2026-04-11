@@ -107,35 +107,6 @@ export default function SignInScreen() {
           </Text>
         </View>
 
-        {/* Social auth buttons */}
-        <View style={styles.socialRow}>
-          <Pressable
-            style={[styles.socialBtn, { backgroundColor: colors.textPrimary }]}
-            testID="apple-sign-in"
-          >
-            <Text style={[styles.socialIcon, { color: colors.background }]}>{'⌘'}</Text>
-            <Text style={[styles.socialLabel, { color: colors.background, fontFamily: fontFamily.semibold }]}>
-              Continue with Apple
-            </Text>
-          </Pressable>
-          <Pressable
-            style={[styles.socialBtn, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border }]}
-            testID="google-sign-in"
-          >
-            <Text style={[styles.socialIcon, { color: colors.textPrimary }]}>{'G'}</Text>
-            <Text style={[styles.socialLabel, { color: colors.textPrimary, fontFamily: fontFamily.semibold }]}>
-              Continue with Google
-            </Text>
-          </Pressable>
-        </View>
-
-        {/* Divider */}
-        <View style={styles.dividerRow} testID="divider">
-          <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-          <Text style={[typography.bodySm, { color: colors.textMuted }]}>or</Text>
-          <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-        </View>
-
         {/* Form */}
         <View style={styles.form}>
           <Input
@@ -228,34 +199,6 @@ const styles = StyleSheet.create({
     fontSize: 28,
     lineHeight: 32,
     letterSpacing: 3,
-  },
-  socialRow: {
-    gap: spacing.sm,
-  },
-  socialBtn: {
-    height: 50,
-    borderRadius: borderRadius.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-  },
-  socialIcon: {
-    fontSize: 18,
-    lineHeight: 22,
-  },
-  socialLabel: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  dividerLine: {
-    flex: 1,
-    height: StyleSheet.hairlineWidth,
   },
   form: {
     gap: spacing.lg,

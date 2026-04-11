@@ -18,6 +18,7 @@ import { DiaryEntryCard } from '@/components/diary/DiaryEntryCard';
 import { DiscoveryCountdown } from '@/components/diary/DiscoveryCountdown';
 import { useTheme } from '@/theme/ThemeContext';
 import { useThemeStore } from '@/stores/themeStore';
+import type { ThemeMode } from '@/stores/themeStore';
 import { typography, fontFamily } from '@/theme/typography';
 import { spacing, borderRadius } from '@/theme/spacing';
 import type { LocalDiaryEntry } from '@/stores/diaryStore';
@@ -52,8 +53,8 @@ function sectionTitleForDate(dateStr: string): { title: string; dateLabel: strin
 
 export default function DiaryIndexScreen() {
   const router = useRouter();
-  const { colors } = useTheme();
-  const { mode, setMode } = useThemeStore();
+  const { colors, isDark } = useTheme();
+  const { setMode } = useThemeStore();
   const {
     entries,
     selectedDate,
@@ -95,10 +96,13 @@ export default function DiaryIndexScreen() {
     return streak;
   }, [entryDates]);
 
-  // Build sorted sections grouped by date
+  const [calendarExpanded, setCalendarExpanded] = React.useState(false);
+
+  // Build sorted sections grouped by date, filtered when calendar is expanded
   const sections = useMemo<SectionData[]>(() => {
     const byDate = new Map<string, LocalDiaryEntry[]>();
     for (const entry of entries.values()) {
+      if (calendarExpanded && entry.entry_date !== selectedDate) continue;
       const existing = byDate.get(entry.entry_date);
       if (existing) {
         existing.push(entry);
@@ -112,7 +116,7 @@ export default function DiaryIndexScreen() {
         ...sectionTitleForDate(date),
         data: data.sort((a, b) => b.created_at.localeCompare(a.created_at)),
       }));
-  }, [entries]);
+  }, [entries, calendarExpanded, selectedDate]);
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
@@ -132,8 +136,9 @@ export default function DiaryIndexScreen() {
   }, [router]);
 
   const handleToggleTheme = useCallback(() => {
-    setMode(mode === 'dark' ? 'light' : 'dark');
-  }, [mode, setMode]);
+    const next: ThemeMode = isDark ? 'light' : 'dark';
+    setMode(next);
+  }, [isDark, setMode]);
 
   const renderItem = useCallback(
     ({ item }: { item: LocalDiaryEntry }) => (
@@ -155,7 +160,7 @@ export default function DiaryIndexScreen() {
           <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>
             {section.title}
             <Text style={[styles.sectionDateLabel, { color: colors.textMuted }]}>
-              {' — '}
+              {' - '}
               {section.dateLabel}
             </Text>
           </Text>
@@ -179,6 +184,8 @@ export default function DiaryIndexScreen() {
           entryDates={entryDates}
           currentMonth={currentMonth}
           onChangeMonth={setCurrentMonth}
+          expanded={calendarExpanded}
+          onExpandedChange={setCalendarExpanded}
           testID="diary-week-strip"
         />
 
@@ -208,6 +215,7 @@ export default function DiaryIndexScreen() {
       discoveryUnlocked,
       daysWithEntries,
       streakCount,
+      calendarExpanded,
       setSelectedDate,
       setCurrentMonth,
       colors,
@@ -302,7 +310,7 @@ export default function DiaryIndexScreen() {
             testID="diary-theme-toggle"
           >
             <Text style={styles.themeToggleIcon}>
-              {mode === 'dark' ? '☀️' : '🌙'}
+              {isDark ? '☀️' : '🌙'}
             </Text>
           </Pressable>
           {/* New entry button */}
@@ -330,7 +338,7 @@ export default function DiaryIndexScreen() {
           testID="offline-banner"
         >
           <Text style={[styles.offlineBannerText, { color: colors.textSecondary }]}>
-            {'☁  Offline — entries saved locally'}
+            {'☁  Offline - entries saved locally'}
           </Text>
         </View>
       ) : null}

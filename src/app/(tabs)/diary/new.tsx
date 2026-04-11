@@ -15,7 +15,7 @@ import { useRouter } from 'expo-router';
 import * as Crypto from 'expo-crypto';
 import { format } from 'date-fns';
 import { useDiaryEntry } from '@/hooks/useDiaryEntry';
-import { useUIStore } from '@/stores/uiStore';
+import { useUIStore, type ToastVariant } from '@/stores/uiStore';
 import { useTheme } from '@/theme/ThemeContext';
 import { typography, fontFamily } from '@/theme/typography';
 import { spacing, borderRadius } from '@/theme/spacing';
@@ -41,6 +41,7 @@ export default function NewEntryScreen() {
   const setPendingAudioUri = useUIStore((state) => state.setPendingAudioUri);
   const pendingImageUris = useUIStore((state) => state.pendingImageUris);
   const setPendingImageUris = useUIStore((state) => state.setPendingImageUris);
+  const showToast = useUIStore((state) => state.showToast);
 
   const [text, setText] = useState('');
   const [mood, setMood] = useState<string | null>(null);
@@ -96,6 +97,7 @@ export default function NewEntryScreen() {
         mood: mood ?? undefined,
         images,
       });
+      showToast('Entry Saved', 'success' as ToastVariant);
       router.back();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to save entry';

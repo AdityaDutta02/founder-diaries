@@ -185,7 +185,7 @@ export default function NotificationsScreen() {
               ]}
             >
               <Text style={[typography.bodyMd, { color: colors.textSecondary, lineHeight: 20 }]}>
-                These are casual questions — like what your morning routine looks like or what you
+                These are casual questions - like what your morning routine looks like or what you
                 wanted to be as a kid. Never about content strategy.
               </Text>
             </View>
@@ -213,7 +213,7 @@ export default function NotificationsScreen() {
             ]}
           >
             <Text style={[typography.bodyMd, { color: colors.textSecondary, lineHeight: 22 }]}>
-              As you write, we quietly build an understanding of who you are — your story, values,
+              As you write, we quietly build an understanding of who you are - your story, values,
               and voice. This helps your generated content feel genuinely like you, not like it was
               written by a robot.
             </Text>
