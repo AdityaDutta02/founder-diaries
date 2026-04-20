@@ -9,6 +9,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { usePostHog } from 'posthog-react-native';
 import { Button, EyeToggle, Input, useToast } from '@/components/ui';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
@@ -41,6 +42,7 @@ function validate(fullName: string, email: string, password: string): FormErrors
 export default function SignUpScreen() {
   const { colors } = useTheme();
   const toast = useToast();
+  const posthog = usePostHog();
   const { setSession, setProfile } = useAuthStore();
 
   const [fullName, setFullName] = useState('');
@@ -91,6 +93,7 @@ export default function SignUpScreen() {
 
         if (data.session) {
           setSession(data.session);
+          posthog.capture('user_signed_up', { method: 'email' });
           const { data: profileData } = await supabase
             .from('profiles')
             .select('id, email, full_name, avatar_url, industry, niche_keywords, onboarding_completed, discovery_unlocked, timezone, created_at, updated_at, diary_start_date, expo_push_token')
@@ -131,31 +134,6 @@ export default function SignUpScreen() {
           <Text style={[typography.bodyMd, { color: colors.textSecondary }]}>
             Your forge. Your story.
           </Text>
-        </View>
-
-        {/* Social auth buttons */}
-        <View style={styles.socialRow}>
-          <Pressable style={[styles.socialBtn, { backgroundColor: colors.textPrimary }]}>
-            <Text style={[styles.socialIcon, { color: colors.background }]}>{'⌘'}</Text>
-            <Text style={[styles.socialLabel, { color: colors.background, fontFamily: fontFamily.semibold }]}>
-              Continue with Apple
-            </Text>
-          </Pressable>
-          <Pressable
-            style={[styles.socialBtn, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border }]}
-          >
-            <Text style={[styles.socialIcon, { color: colors.textPrimary }]}>{'G'}</Text>
-            <Text style={[styles.socialLabel, { color: colors.textPrimary, fontFamily: fontFamily.semibold }]}>
-              Continue with Google
-            </Text>
-          </Pressable>
-        </View>
-
-        {/* Divider */}
-        <View style={styles.dividerRow}>
-          <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-          <Text style={[typography.bodySm, { color: colors.textMuted }]}>or</Text>
-          <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
         </View>
 
         {/* Form */}
@@ -250,34 +228,6 @@ const styles = StyleSheet.create({
     fontSize: 28,
     lineHeight: 32,
     letterSpacing: 3,
-  },
-  socialRow: {
-    gap: spacing.sm,
-  },
-  socialBtn: {
-    height: 50,
-    borderRadius: borderRadius.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-  },
-  socialIcon: {
-    fontSize: 18,
-    lineHeight: 22,
-  },
-  socialLabel: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  dividerLine: {
-    flex: 1,
-    height: StyleSheet.hairlineWidth,
   },
   form: {
     gap: spacing.lg,

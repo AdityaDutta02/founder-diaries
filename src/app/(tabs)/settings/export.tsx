@@ -228,14 +228,14 @@ export default function ExportScreen() {
               format="pdf"
               selected={format === 'pdf'}
               label="PDF Document"
-              description="A polished, beautifully formatted document — great for saving or sharing."
+              description="A polished, beautifully formatted document - great for saving or sharing."
               onPress={() => setFormat('pdf')}
             />
             <FormatCard
               format="text"
               selected={format === 'text'}
               label="Plain Text"
-              description="A simple .txt file — readable anywhere, no formatting."
+              description="A simple .txt file - readable anywhere, no formatting."
               onPress={() => setFormat('text')}
             />
           </View>

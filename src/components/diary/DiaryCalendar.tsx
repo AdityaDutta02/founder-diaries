@@ -76,9 +76,6 @@ export const DiaryCalendar = memo(function DiaryCalendar({
     <View
       style={{
         backgroundColor: colors.surface,
-        borderRadius: borderRadius.lg,
-        borderWidth: 1,
-        borderColor: colors.border,
         padding: spacing.lg,
         gap: spacing.sm,
       }}
@@ -93,34 +90,15 @@ export const DiaryCalendar = memo(function DiaryCalendar({
           marginBottom: spacing.xs,
         }}
       >
-        {/* "March 2026 ›" — tapping the › advances to next month */}
-        <Pressable
-          onPress={handleNextMonth}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel="Next month"
-          style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}
+        <Text
+          style={{
+            ...typography.headingLg,
+            color: colors.textPrimary,
+          }}
           testID="calendar-month-label"
         >
-          <Text
-            style={{
-              ...typography.headingLg,
-              color: colors.textPrimary,
-            }}
-          >
-            {monthLabel}
-          </Text>
-          <Text
-            style={{
-              fontSize: 18,
-              lineHeight: 22,
-              color: colors.accent,
-              fontFamily: fontFamily.bold,
-            }}
-          >
-            {'›'}
-          </Text>
-        </Pressable>
+          {monthLabel}
+        </Text>
 
         {/* ‹ › navigation arrows */}
         <View style={{ flexDirection: 'row', gap: spacing.xs }}>

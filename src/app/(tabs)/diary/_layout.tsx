@@ -27,7 +27,7 @@ export default function DiaryLayout() {
           name="new"
           options={{
             title: 'New Entry',
-            headerShown: true,
+            headerShown: false,
             presentation: 'modal',
           }}
         />

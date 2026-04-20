@@ -15,6 +15,8 @@ interface DiaryWeekStripProps {
   entryDates: Set<string>;
   currentMonth: Date;
   onChangeMonth: (month: Date) => void;
+  expanded: boolean;
+  onExpandedChange: (expanded: boolean) => void;
   testID?: string;
 }
 
@@ -24,11 +26,12 @@ export const DiaryWeekStrip = memo(function DiaryWeekStrip({
   entryDates,
   currentMonth,
   onChangeMonth,
+  expanded,
+  onExpandedChange,
   testID,
 }: DiaryWeekStripProps) {
   const { colors } = useTheme();
   const [weekOffset, setWeekOffset] = useState(0);
-  const [expanded, setExpanded] = useState(false);
 
   const today = new Date();
   // Monday-start week (consistent with DiaryCalendar)
@@ -40,8 +43,14 @@ export const DiaryWeekStrip = memo(function DiaryWeekStrip({
 
   const toggleExpanded = useCallback(() => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setExpanded((e) => !e);
-  }, []);
+    onExpandedChange(!expanded);
+  }, [expanded, onExpandedChange]);
+
+  const handleShowAll = useCallback(() => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    onSelectDate(format(new Date(), 'yyyy-MM-dd'));
+    onExpandedChange(false);
+  }, [onSelectDate, onExpandedChange]);
 
   const swipeGesture = Gesture.Pan()
     .runOnJS(true)
@@ -117,14 +126,14 @@ export const DiaryWeekStrip = memo(function DiaryWeekStrip({
             onChangeMonth={onChangeMonth}
           />
           <Pressable
-            onPress={toggleExpanded}
-            style={styles.collapseBtn}
+            onPress={handleShowAll}
+            style={[styles.showAllBtn, { backgroundColor: colors.accent }]}
             accessibilityRole="button"
-            accessibilityLabel="Collapse to week view"
+            accessibilityLabel="Show all entries"
             hitSlop={8}
-            testID="calendar-collapse-btn"
+            testID="calendar-show-all-btn"
           >
-            <Text style={[styles.expandChevron, { color: colors.textMuted }]}>{'▲'}</Text>
+            <Text style={[styles.showAllText, { color: colors.accentText }]}>Show All</Text>
           </Pressable>
         </>
       ) : (
@@ -235,9 +244,18 @@ const styles = StyleSheet.create({
     fontSize: 10,
     lineHeight: 14,
   },
-  collapseBtn: {
+  showAllBtn: {
     alignItems: 'center',
-    paddingVertical: spacing.xs,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xl,
+    borderRadius: borderRadius.full,
+    alignSelf: 'center',
+    marginTop: spacing.xs,
+  },
+  showAllText: {
+    fontFamily: fontFamily.semibold,
+    fontSize: 14,
+    lineHeight: 18,
   },
   navRow: {
     flexDirection: 'row',
