@@ -509,7 +509,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   saveEditText: {
-    fontFamily: fontFamily.semiBold,
+    fontFamily: fontFamily.semibold,
     fontSize: 15,
     lineHeight: 20,
   },

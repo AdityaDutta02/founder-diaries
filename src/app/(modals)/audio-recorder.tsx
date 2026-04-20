@@ -417,7 +417,7 @@ export default function AudioRecorderModal() {
                 accessibilityRole="button"
                 testID="use-recording-btn"
               >
-                <Text style={[styles.actionBtnText, { color: colors.accentText, fontFamily: fontFamily.semiBold }]}>
+                <Text style={[styles.actionBtnText, { color: colors.accentText, fontFamily: fontFamily.semibold }]}>
                   Use Recording
                 </Text>
               </Pressable>

@@ -237,7 +237,7 @@ export default function DiaryIndexScreen() {
         <Text
           style={{
             ...typography.headingMd,
-            fontFamily: fontFamily.semiBold,
+            fontFamily: fontFamily.semibold,
             color: colors.textPrimary,
             textAlign: 'center',
           }}

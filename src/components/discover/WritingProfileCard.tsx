@@ -151,7 +151,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     flex: 1,
-    fontFamily: fontFamily.semiBold,
+    fontFamily: fontFamily.semibold,
     fontSize: 15,
     lineHeight: 20,
   },

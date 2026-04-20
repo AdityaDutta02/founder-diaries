@@ -27,6 +27,7 @@ import { ThemeProvider, useTheme } from '@/theme/ThemeContext';
 import { ToastProvider } from '@/components/ui/ToastProvider';
 import { setupNotificationHandler, registerPushToken } from '@/services/notificationService';
 import { syncPendingEntries } from '@/services/syncService';
+import { useProfileReadiness } from '@/hooks/useProfileReadiness';
 import type { Profile } from '@/stores/authStore';
 
 const BACKGROUND_SYNC_TASK = 'background-sync';
@@ -54,6 +55,9 @@ const queryClient = new QueryClient({
 function RootLayoutInner() {
   const { session, profile, isLoading, setSession, setProfile, setLoading } = useAuthStore();
   const { colors, isDark } = useTheme();
+
+  // Phase 1.5: show one-time toast when content profile is ready
+  useProfileReadiness();
 
   useEffect(() => {
     async function initApp() {

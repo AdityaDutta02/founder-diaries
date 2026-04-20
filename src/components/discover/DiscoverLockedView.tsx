@@ -172,6 +172,6 @@ const styles = StyleSheet.create({
   },
   diaryBtnText: {
     ...typography.button,
-    fontFamily: fontFamily.semiBold,
+    fontFamily: fontFamily.semibold,
   },
 });

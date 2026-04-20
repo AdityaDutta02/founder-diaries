@@ -327,7 +327,7 @@ const styles = StyleSheet.create({
     ...typography.button,
   },
   headerSaveText: {
-    fontFamily: fontFamily.semiBold,
+    fontFamily: fontFamily.semibold,
     textAlign: 'right',
   },
   headerTitle: {

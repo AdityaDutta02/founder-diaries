@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   approveBtnText: {
-    fontFamily: fontFamily.semiBold,
+    fontFamily: fontFamily.semibold,
     fontSize: 15,
     lineHeight: 20,
   },
