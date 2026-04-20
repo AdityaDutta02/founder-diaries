@@ -20,7 +20,7 @@ export default function NotFoundScreen() {
         <Text style={[styles.message, { color: colors.textSecondary }]}>
           The screen you are looking for does not exist.
         </Text>
-        <Link href="/(tabs)" style={styles.link}>
+        <Link href={'/(tabs)' as never} style={styles.link}>
           <Text style={[styles.linkText, { color: colors.accent }]}>Go to home</Text>
         </Link>
       </View>

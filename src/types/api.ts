@@ -24,6 +24,7 @@ export interface GenerateContentRequest {
 export interface GenerateContentResponse {
   success: boolean;
   postId: string;
+  post?: import('./database').GeneratedPost;
 }
 
 // ─── Edge Function: generate-image ─────────────────────────────────────────

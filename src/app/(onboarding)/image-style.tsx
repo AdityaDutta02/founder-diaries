@@ -61,7 +61,7 @@ export default function ImageStyleScreen() {
   async function handleContinue(): Promise<void> {
     const userId = session?.user.id;
     if (!userId) {
-      logger.warn({ msg: 'image-style: no authenticated user, skipping profile update' });
+      logger.warn('image-style: no authenticated user, skipping profile update');
       router.push('/(onboarding)/quota-config');
       return;
     }
@@ -74,13 +74,13 @@ export default function ImageStyleScreen() {
         .eq('id', userId);
 
       if (error) {
-        logger.error({ msg: 'image-style: failed to save image_style', error: error.message, userId });
+        logger.error('image-style: failed to save image_style', { error: error.message, userId });
       } else {
-        logger.info({ msg: 'image-style: saved image_style', style: selectedStyle, userId });
+        logger.info('image-style: saved image_style', { style: selectedStyle, userId });
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      logger.error({ msg: 'image-style: unexpected error', error: message });
+      logger.error('image-style: unexpected error', { error: message });
     } finally {
       setIsSaving(false);
       router.push('/(onboarding)/quota-config');
