@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
+  Platform,
   Pressable,
   ScrollView,
   Text,
@@ -246,8 +247,8 @@ export default function EntryDetailScreen() {
           </Text>
         )}
 
-        {/* Audio player */}
-        {entry.audio_local_uri ? (
+        {/* Audio player — native only (local URIs don't work on web) */}
+        {Platform.OS !== 'web' && entry.audio_local_uri ? (
           <View style={{ gap: spacing.sm }} testID="entry-audio-section">
             <Text style={{ ...typography.label, color: colors.textMuted }}>
               AUDIO
