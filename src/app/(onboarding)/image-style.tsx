@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
   Pressable,
@@ -54,6 +54,11 @@ export default function ImageStyleScreen() {
   const router = useRouter();
   const { colors, shadows } = useTheme();
   const session = useAuthStore((s) => s.session);
+  const params = useLocalSearchParams<{
+    industry: string;
+    keywords: string;
+    platforms: string;
+  }>();
 
   const [selectedStyle, setSelectedStyle] = useState<ImageStyle>('professional');
   const [isSaving, setIsSaving] = useState(false);
@@ -62,7 +67,14 @@ export default function ImageStyleScreen() {
     const userId = session?.user.id;
     if (!userId) {
       logger.warn('image-style: no authenticated user, skipping profile update');
-      router.push('/(onboarding)/quota-config');
+      router.push({
+        pathname: '/(onboarding)/quota-config',
+        params: {
+          industry: params.industry ?? '',
+          keywords: params.keywords ?? '[]',
+          platforms: params.platforms ?? '[]',
+        },
+      });
       return;
     }
 
@@ -83,7 +95,14 @@ export default function ImageStyleScreen() {
       logger.error('image-style: unexpected error', { error: message });
     } finally {
       setIsSaving(false);
-      router.push('/(onboarding)/quota-config');
+      router.push({
+        pathname: '/(onboarding)/quota-config',
+        params: {
+          industry: params.industry ?? '',
+          keywords: params.keywords ?? '[]',
+          platforms: params.platforms ?? '[]',
+        },
+      });
     }
   }
 
