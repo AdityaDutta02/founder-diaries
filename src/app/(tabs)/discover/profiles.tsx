@@ -50,32 +50,28 @@ export default function WritingProfilesScreen() {
 
   const handleRefresh = useCallback(
     async (platform: ContentWritingProfile['platform']) => {
+      if (!session?.user.id) return;
       setRefreshingPlatform(platform);
       try {
-        // Trigger refresh via generation queue in Supabase
-        const { error } = await supabase.from('generation_queue').insert({
-          user_id: session?.user.id,
-          job_type: 'profile_analysis',
-          status: 'pending',
-          payload: { platform },
-          retry_count: 0,
-          max_retries: 3,
+        const { data, error } = await supabase.functions.invoke('analyze-creators', {
+          body: { userId: session.user.id, platform },
         });
 
         if (error) {
-          logger.error('Failed to queue profile refresh', { error: error.message, platform });
+          logger.error('Failed to refresh writing profile', { error: error.message, platform });
         } else {
-          logger.info('Profile refresh queued', { platform });
+          logger.info('Writing profile refreshed', { platform });
+          await fetchProfiles();
         }
       } catch (err) {
-        logger.error('Unexpected error queuing profile refresh', {
+        logger.error('Unexpected error refreshing writing profile', {
           error: err instanceof Error ? err.message : String(err),
         });
       } finally {
         setRefreshingPlatform(null);
       }
     },
-    [session?.user.id],
+    [session?.user.id, fetchProfiles],
   );
 
   return (
