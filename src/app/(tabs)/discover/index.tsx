@@ -39,6 +39,7 @@ export default function DiscoverScreen() {
     creators,
     diaryDaysCount,
     isLoading,
+    isRefreshing,
     triggerScrapeAndAnalyze,
     refreshProfiles,
   } = useCreatorDiscovery(platformFilter);
@@ -143,7 +144,7 @@ export default function DiscoverScreen() {
         contentContainerStyle={styles.listContent}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         onRefresh={refreshProfiles}
-        refreshing={false}
+        refreshing={isRefreshing}
         ListHeaderComponent={
           <View style={styles.listHeader}>
             <PlatformFilter

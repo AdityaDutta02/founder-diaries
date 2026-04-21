@@ -14,6 +14,7 @@ export interface UseCreatorDiscoveryReturn {
   writingProfiles: ContentWritingProfile[];
   diaryDaysCount: number;
   isLoading: boolean;
+  isRefreshing: boolean;
   isError: boolean;
   triggerScrapeAndAnalyze: () => Promise<void>;
   refreshProfiles: () => void;
@@ -98,6 +99,7 @@ export function useCreatorDiscovery(
     writingProfiles: writingProfilesQuery.data ?? [],
     diaryDaysCount: diaryDaysQuery.data ?? 0,
     isLoading: creatorsQuery.isLoading || writingProfilesQuery.isLoading,
+    isRefreshing: creatorsQuery.isRefetching,
     isError: creatorsQuery.isError || writingProfilesQuery.isError,
     triggerScrapeAndAnalyze,
     refreshProfiles,

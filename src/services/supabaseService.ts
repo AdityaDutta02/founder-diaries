@@ -144,7 +144,9 @@ export async function getDistinctDiaryDays(userId: string): Promise<number> {
   const { data, error } = await supabase
     .from('diary_entries')
     .select('entry_date')
-    .eq('user_id', userId);
+    .eq('user_id', userId)
+    .order('entry_date', { ascending: false })
+    .limit(100);
 
   if (error) {
     logger.error('getDistinctDiaryDays failed', { userId, error: error.message });
