@@ -34,7 +34,7 @@ export async function requestScraping(
     throw new Error('Scraping request returned no data');
   }
 
-  logger.info('Scraping requested', { userId, platforms, creatorsScraped: data.creatorsScraped });
+  logger.info('Scraping requested', { userId, platforms, creatorCounts: data.creatorCounts });
   return data;
 }
 

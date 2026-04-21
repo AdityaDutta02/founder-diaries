@@ -51,7 +51,7 @@ export interface ScrapeCreatorsRequest {
 
 export interface ScrapeCreatorsResponse {
   success: boolean;
-  creatorsScraped: number;
+  creatorCounts: Record<string, number>;
 }
 
 // ─── Edge Function: analyze-creators ───────────────────────────────────────
