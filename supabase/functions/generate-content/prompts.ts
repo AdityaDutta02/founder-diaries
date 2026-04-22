@@ -24,29 +24,39 @@ interface PromptContext {
     content_themes?: string[];
     audience_connection_style?: string | null;
   } | null;
+  userInstructions?: string | null;
 }
 
-function buildWritingProfileInstructions(writingProfile: ContentWritingProfile | null): string {
-  if (!writingProfile) {
-    return "Use a professional, authentic, and engaging tone suited to the platform.";
-  }
-
+function buildWritingProfileInstructions(
+  writingProfile: ContentWritingProfile | null,
+  userInstructions?: string | null,
+): string {
   const parts: string[] = [];
 
-  if (writingProfile.tone_description) {
-    parts.push(`Tone: ${writingProfile.tone_description}`);
-  }
-  if (writingProfile.vocabulary_notes) {
-    parts.push(`Vocabulary style: ${writingProfile.vocabulary_notes}`);
-  }
-  if (writingProfile.example_hooks && writingProfile.example_hooks.length > 0) {
-    parts.push(`Example hook styles:\n${writingProfile.example_hooks.slice(0, 3).map((h) => `- ${h}`).join("\n")}`);
-  }
-  if (writingProfile.hashtag_strategy) {
-    const strategy = writingProfile.hashtag_strategy as Record<string, unknown>;
-    if (strategy.description) {
-      parts.push(`Hashtag strategy: ${strategy.description}`);
+  if (writingProfile) {
+    if (writingProfile.tone_description) {
+      parts.push(`Tone: ${writingProfile.tone_description}`);
     }
+    if (writingProfile.vocabulary_notes) {
+      parts.push(`Vocabulary style: ${writingProfile.vocabulary_notes}`);
+    }
+    if (writingProfile.example_hooks && writingProfile.example_hooks.length > 0) {
+      parts.push(`Example hook styles:\n${writingProfile.example_hooks.slice(0, 3).map((h) => `- ${h}`).join("\n")}`);
+    }
+    if (writingProfile.hashtag_strategy) {
+      const strategy = writingProfile.hashtag_strategy as Record<string, unknown>;
+      if (strategy.description) {
+        parts.push(`Hashtag strategy: ${strategy.description}`);
+      }
+    }
+  }
+
+  if (userInstructions && userInstructions.trim()) {
+    parts.push(`\n## User's custom writing instructions\n${userInstructions.trim()}`);
+  }
+
+  if (parts.length === 0) {
+    return "Use a professional, authentic, and engaging tone suited to the platform.";
   }
 
   return parts.join("\n\n");
@@ -111,7 +121,7 @@ function buildRecentContext(recentEntries: DiaryEntry[]): string {
 }
 
 export function buildLinkedInPostPrompt(ctx: PromptContext): { system: string; user: string } {
-  const profileInstructions = buildWritingProfileInstructions(ctx.writingProfile);
+  const profileInstructions = buildWritingProfileInstructions(ctx.writingProfile, ctx.userInstructions);
   const personaSection = buildPersonaSection(ctx.userPersona);
   const recentContext = buildRecentContext(ctx.recentEntries);
 
@@ -138,7 +148,7 @@ Generate a post that feels authentic, not promotional. Focus on the human story 
 }
 
 export function buildCarouselPrompt(ctx: PromptContext): { system: string; user: string } {
-  const profileInstructions = buildWritingProfileInstructions(ctx.writingProfile);
+  const profileInstructions = buildWritingProfileInstructions(ctx.writingProfile, ctx.userInstructions);
   const personaSection = buildPersonaSection(ctx.userPersona);
   const recentContext = buildRecentContext(ctx.recentEntries);
 
@@ -164,7 +174,7 @@ Make it feel like a founder sharing hard-won wisdom, not a polished marketing de
 }
 
 export function buildThreadPrompt(ctx: PromptContext): { system: string; user: string } {
-  const profileInstructions = buildWritingProfileInstructions(ctx.writingProfile);
+  const profileInstructions = buildWritingProfileInstructions(ctx.writingProfile, ctx.userInstructions);
   const personaSection = buildPersonaSection(ctx.userPersona);
   const recentContext = buildRecentContext(ctx.recentEntries);
 
@@ -189,7 +199,7 @@ Write in a raw, honest founder voice. No corporate speak.`;
 }
 
 export function buildTweetPrompt(ctx: PromptContext): { system: string; user: string } {
-  const profileInstructions = buildWritingProfileInstructions(ctx.writingProfile);
+  const profileInstructions = buildWritingProfileInstructions(ctx.writingProfile, ctx.userInstructions);
   const personaSection = buildPersonaSection(ctx.userPersona);
 
   const system = `You are an X (Twitter) content strategist helping a founder in the ${ctx.industry} industry craft single, impactful posts.

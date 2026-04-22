@@ -35,6 +35,7 @@ function selectPromptBuilder(
   recentEntries: DiaryEntry[];
   industry: string;
   userPersona?: Record<string, unknown> | null;
+  userInstructions?: string | null;
 }) => { system: string; user: string } {
   if (platform === "x" && contentType === "post") return buildTweetPrompt;
   if (platform === "x" && contentType === "thread") return buildThreadPrompt;
@@ -128,6 +129,16 @@ Deno.serve(async (req: Request) => {
 
     const industry = profile?.industry ?? "technology";
 
+    // Fetch user's custom writing instructions for this platform
+    const { data: writingInstructionRow } = await supabaseAdmin
+      .from("user_writing_instructions")
+      .select("instructions")
+      .eq("user_id", userId)
+      .eq("platform", platform)
+      .maybeSingle();
+
+    const userInstructions = writingInstructionRow?.instructions ?? null;
+
     // RAG: semantic retrieval of relevant diary entries (falls back to chronological)
     let recentEntries: DiaryEntry[] = [];
     let retrievalMethod = "chronological";
@@ -182,6 +193,7 @@ Deno.serve(async (req: Request) => {
       recentEntries,
       industry,
       userPersona: personaData ?? null,
+      userInstructions,
     });
 
     const tool = selectTool(contentType, platform);
