@@ -9,9 +9,10 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { Audio as AudioType, Recording } from 'expo-av/build/Audio';
+import type { Recording } from 'expo-av/build/Audio';
 
-let Audio: typeof AudioType | null = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- expo-av types vary between builds
+let Audio: any = null;
 try {
   // expo-av requires a dev build — gracefully handle Expo Go
   Audio = require('expo-av').Audio;
@@ -190,7 +191,7 @@ export default function AudioRecorderModal() {
         const { sound } = await Audio.Sound.createAsync(
           { uri: audioUri },
           { shouldPlay: true },
-          (status) => {
+          (status: { isLoaded: boolean; positionMillis: number; durationMillis?: number; didJustFinish?: boolean }) => {
             if (!status.isLoaded) return;
             setPlaybackMs(status.positionMillis);
             if (status.durationMillis) setDurationMs(status.durationMillis);

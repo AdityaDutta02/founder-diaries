@@ -12,10 +12,8 @@ import { StatusBar } from 'expo-status-bar';
 import Constants from 'expo-constants';
 import * as Font from 'expo-font';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, View, StyleSheet } from 'react-native';
+import { ActivityIndicator, Platform, View, StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import * as TaskManager from 'expo-task-manager';
-import * as BackgroundFetch from 'expo-background-fetch';
 import { initDatabase } from '@/lib/sqlite';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/lib/logger';
@@ -32,15 +30,22 @@ import type { Profile } from '@/stores/authStore';
 
 const BACKGROUND_SYNC_TASK = 'background-sync';
 
-// Must be defined at module level — cannot be inside a component
-TaskManager.defineTask(BACKGROUND_SYNC_TASK, async () => {
-  try {
-    await syncPendingEntries();
-    return BackgroundFetch.BackgroundFetchResult.NewData;
-  } catch {
-    return BackgroundFetch.BackgroundFetchResult.Failed;
-  }
-});
+// Background fetch is native-only — TaskManager crashes on web
+if (Platform.OS !== 'web') {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const TaskManager = require('expo-task-manager') as typeof import('expo-task-manager');
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const BackgroundFetch = require('expo-background-fetch') as typeof import('expo-background-fetch');
+
+  TaskManager.defineTask(BACKGROUND_SYNC_TASK, async () => {
+    try {
+      await syncPendingEntries();
+      return BackgroundFetch.BackgroundFetchResult.NewData;
+    } catch {
+      return BackgroundFetch.BackgroundFetchResult.Failed;
+    }
+  });
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -187,12 +192,15 @@ function RootLayoutInner() {
   }, []);
 
   useEffect(() => {
+    if (Platform.OS === 'web') return;
     const isExpoGo = Constants.executionEnvironment === 'storeClient';
     if (isExpoGo) {
       logger.debug('Skipping background fetch registration in Expo Go');
       return;
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const BackgroundFetch = require('expo-background-fetch') as typeof import('expo-background-fetch');
     BackgroundFetch.registerTaskAsync(BACKGROUND_SYNC_TASK, {
       minimumInterval: 15 * 60,
       stopOnTerminate: false,

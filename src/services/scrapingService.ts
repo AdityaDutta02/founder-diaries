@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/lib/logger';
-import type { ScrapeCreatorsRequest, ScrapeCreatorsResponse } from '@/types/api';
+import type { ScrapeCreatorsRequest, ScrapeCreatorsResponse, AnalyzeCreatorsRequest, AnalyzeCreatorsResponse } from '@/types/api';
 import type { Platform } from '@/types/database';
 
 const SCRAPE_COOLDOWN_HOURS = 24;
@@ -34,7 +34,7 @@ export async function requestScraping(
     throw new Error('Scraping request returned no data');
   }
 
-  logger.info('Scraping requested', { userId, platforms, creatorsScraped: data.creatorsScraped });
+  logger.info('Scraping requested', { userId, platforms, creatorCounts: data.creatorCounts });
   return data;
 }
 
@@ -61,4 +61,28 @@ export async function canScrape(userId: string): Promise<boolean> {
     (Date.now() - lastScraped.getTime()) / (1000 * 60 * 60);
 
   return hoursSinceScrape >= SCRAPE_COOLDOWN_HOURS;
+}
+
+export async function requestAnalysis(
+  userId: string,
+  platform: Platform,
+): Promise<AnalyzeCreatorsResponse> {
+  const request: AnalyzeCreatorsRequest = { userId, platform };
+
+  const { data, error } = await supabase.functions.invoke<AnalyzeCreatorsResponse>(
+    'analyze-creators',
+    { body: request },
+  );
+
+  if (error) {
+    logger.error('requestAnalysis failed', { userId, platform, error: error.message });
+    throw new Error(`Analysis request failed: ${error.message}`);
+  }
+
+  if (!data) {
+    throw new Error('Analysis request returned no data');
+  }
+
+  logger.info('Analysis completed', { userId, platform });
+  return data;
 }

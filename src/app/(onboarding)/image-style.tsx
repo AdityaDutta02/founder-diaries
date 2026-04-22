@@ -1,13 +1,13 @@
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { StepDots } from '@/components/ui/StepDots';
 import { logger } from '@/lib/logger';
 import { supabase } from '@/lib/supabase';
@@ -54,6 +54,11 @@ export default function ImageStyleScreen() {
   const router = useRouter();
   const { colors, shadows } = useTheme();
   const session = useAuthStore((s) => s.session);
+  const params = useLocalSearchParams<{
+    industry: string;
+    keywords: string;
+    platforms: string;
+  }>();
 
   const [selectedStyle, setSelectedStyle] = useState<ImageStyle>('professional');
   const [isSaving, setIsSaving] = useState(false);
@@ -61,8 +66,15 @@ export default function ImageStyleScreen() {
   async function handleContinue(): Promise<void> {
     const userId = session?.user.id;
     if (!userId) {
-      logger.warn({ msg: 'image-style: no authenticated user, skipping profile update' });
-      router.push('/(onboarding)/quota-config');
+      logger.warn('image-style: no authenticated user, skipping profile update');
+      router.push({
+        pathname: '/(onboarding)/quota-config',
+        params: {
+          industry: params.industry ?? '',
+          keywords: params.keywords ?? '[]',
+          platforms: params.platforms ?? '[]',
+        },
+      });
       return;
     }
 
@@ -74,16 +86,23 @@ export default function ImageStyleScreen() {
         .eq('id', userId);
 
       if (error) {
-        logger.error({ msg: 'image-style: failed to save image_style', error: error.message, userId });
+        logger.error('image-style: failed to save image_style', { error: error.message, userId });
       } else {
-        logger.info({ msg: 'image-style: saved image_style', style: selectedStyle, userId });
+        logger.info('image-style: saved image_style', { style: selectedStyle, userId });
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      logger.error({ msg: 'image-style: unexpected error', error: message });
+      logger.error('image-style: unexpected error', { error: message });
     } finally {
       setIsSaving(false);
-      router.push('/(onboarding)/quota-config');
+      router.push({
+        pathname: '/(onboarding)/quota-config',
+        params: {
+          industry: params.industry ?? '',
+          keywords: params.keywords ?? '[]',
+          platforms: params.platforms ?? '[]',
+        },
+      });
     }
   }
 

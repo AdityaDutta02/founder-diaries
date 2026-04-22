@@ -1,7 +1,9 @@
 import { useCallback } from 'react';
+import { Platform } from 'react-native';
 import * as Crypto from 'expo-crypto';
 import { usePostHog } from 'posthog-react-native';
 import { getDatabase } from '@/lib/sqlite';
+import { supabase } from '@/lib/supabase';
 import { logger } from '@/lib/logger';
 import { useDiaryStore, type LocalDiaryEntry, type LocalDiaryImage } from '@/stores/diaryStore';
 import { addToSyncQueue } from '@/services/syncService';
@@ -55,6 +57,50 @@ export function useDiaryEntry(): UseDiaryEntryReturn {
       const localId = Crypto.randomUUID();
       const now = new Date().toISOString();
       const userId = session?.user.id;
+
+      if (Platform.OS === 'web') {
+        // On web: write directly to Supabase (no SQLite, no sync queue)
+        const { data: syncData, error } = await supabase.functions.invoke<{
+          synced: Array<{ localId: string; remoteId: string }>;
+        }>('sync-diary', {
+          body: {
+            entries: [{
+              localId,
+              entryDate: data.entry_date,
+              textContent: data.text_content ?? '',
+            }],
+          },
+        });
+
+        if (error) {
+          logger.error('Web diary entry creation failed', { error: error.message });
+          throw error;
+        }
+
+        const newEntry: LocalDiaryEntry = {
+          local_id: localId,
+          entry_date: data.entry_date,
+          text_content: data.text_content ?? null,
+          audio_local_uri: null,
+          mood: data.mood ?? null,
+          sync_status: 'synced',
+          remote_id: syncData?.synced?.[0]?.remoteId ?? null,
+          created_at: now,
+          updated_at: now,
+          images: [],
+        };
+        addEntry(newEntry);
+
+        posthog.capture('diary_entry_created', {
+          has_text: Boolean(data.text_content),
+          has_audio: false,
+          image_count: 0,
+          mood: data.mood ?? null,
+        });
+
+        logger.info('Diary entry created (web)', { localId });
+        return newEntry;
+      }
 
       const db = getDatabase();
       await db.runAsync(
@@ -143,6 +189,31 @@ export function useDiaryEntry(): UseDiaryEntryReturn {
     async (id: string, data: UpdateEntryData): Promise<void> => {
       const now = new Date().toISOString();
 
+      if (Platform.OS === 'web') {
+        const entry = useDiaryStore.getState().entries.get(id);
+        const remoteId = entry?.remote_id;
+
+        if (remoteId) {
+          const { error } = await supabase
+            .from('diary_entries')
+            .update({
+              text_content: data.text_content,
+              mood: data.mood,
+              updated_at: now,
+            })
+            .eq('id', remoteId);
+
+          if (error) {
+            logger.error('Web diary entry update failed', { error: error.message });
+            throw error;
+          }
+        }
+
+        storeUpdate(id, { ...data, sync_status: 'synced', updated_at: now });
+        logger.info('Diary entry updated (web)', { id });
+        return;
+      }
+
       const db = getDatabase();
       await db.runAsync(
         `UPDATE diary_entries
@@ -180,12 +251,33 @@ export function useDiaryEntry(): UseDiaryEntryReturn {
 
   const deleteEntry = useCallback(
     async (id: string): Promise<void> => {
+      if (Platform.OS === 'web') {
+        const entry = useDiaryStore.getState().entries.get(id);
+        const remoteId = entry?.remote_id;
+
+        if (remoteId) {
+          const { error } = await supabase
+            .from('diary_entries')
+            .update({ deleted_at: new Date().toISOString() })
+            .eq('id', remoteId);
+
+          if (error) {
+            logger.error('Web diary entry deletion failed', { error: error.message });
+            throw error;
+          }
+        }
+
+        storeDelete(id);
+        logger.info('Diary entry deleted (web)', { id });
+        return;
+      }
+
       const db = getDatabase();
       await db.runAsync(`DELETE FROM diary_entries WHERE local_id = ?`, [id]);
       storeDelete(id);
       logger.info('Diary entry deleted', { id });
     },
-    [storeDelete],
+    [storeDelete, session],
   );
 
   return { entries, allEntryDates, createEntry, updateEntry, deleteEntry };

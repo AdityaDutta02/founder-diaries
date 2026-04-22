@@ -138,8 +138,8 @@ export async function processQueueItem(item: SyncQueueItem): Promise<void> {
         const storagePath = `${payload.userId}/${remoteEntryId}/${payload.localImageId}.jpg`;
 
         // Read file as base64
-        // eslint-disable-next-line @typescript-eslint/no-var-requires -- expo-file-system lazy require
-        const FileSystem = require('expo-file-system') as typeof import('expo-file-system');
+        // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-explicit-any -- expo-file-system lazy require
+        const FileSystem = require('expo-file-system') as any;
         let base64: string;
         try {
           base64 = await FileSystem.readAsStringAsync(payload.imageLocalUri, {

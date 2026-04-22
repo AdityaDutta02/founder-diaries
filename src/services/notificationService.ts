@@ -215,8 +215,8 @@ export async function registerPushToken(userId: string): Promise<void> {
 
     // Resolve EAS projectId — populated in production builds
     const projectId =
-      (Constants.easConfig as Record<string, unknown> | undefined)?.projectId as string | undefined ??
-      (Constants.expoConfig?.extra as Record<string, unknown> | undefined)?.eas?.projectId as string | undefined;
+      (Constants.easConfig as Record<string, string> | undefined)?.projectId ??
+      ((Constants.expoConfig?.extra as Record<string, Record<string, string>> | undefined)?.eas?.projectId);
 
     if (!projectId) {
       logger.warn('Cannot register push token — EAS projectId not configured');

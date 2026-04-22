@@ -4,7 +4,7 @@ import { useTheme } from '@/theme/ThemeContext';
 import { typography } from '@/theme/typography';
 import { borderRadius, spacing } from '@/theme/spacing';
 
-export type DiscoverPlatformFilter = 'all' | 'linkedin' | 'instagram' | 'x';
+export type DiscoverPlatformFilter = 'all' | 'linkedin' | 'x';
 
 interface FilterOption {
   value: DiscoverPlatformFilter;
@@ -14,7 +14,6 @@ interface FilterOption {
 const OPTIONS: FilterOption[] = [
   { value: 'all', label: 'All' },
   { value: 'linkedin', label: 'LinkedIn' },
-  { value: 'instagram', label: 'Instagram' },
   { value: 'x', label: 'X' },
 ];
 

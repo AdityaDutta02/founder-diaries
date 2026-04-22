@@ -1,5 +1,6 @@
 import React, { memo, useCallback, useState } from 'react';
 import {
+  Platform,
   ScrollView,
   Text,
   TouchableOpacity,
@@ -122,24 +123,26 @@ export const DiaryEntryForm = memo(function DiaryEntryForm({
           Attachments
         </Text>
         <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-          <TouchableOpacity
-            onPress={onRecordAudio}
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: borderRadius.md,
-              backgroundColor: audioUri ? colors.accentLight : colors.surface2,
-              borderWidth: 1,
-              borderColor: audioUri ? colors.accent : colors.border,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-            accessibilityRole="button"
-            accessibilityLabel="Record audio"
-            testID="action-mic"
-          >
-            <Text style={{ fontSize: 20 }}>{'🎤'}</Text>
-          </TouchableOpacity>
+          {Platform.OS !== 'web' && (
+            <TouchableOpacity
+              onPress={onRecordAudio}
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: borderRadius.md,
+                backgroundColor: audioUri ? colors.accentLight : colors.surface2,
+                borderWidth: 1,
+                borderColor: audioUri ? colors.accent : colors.border,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Record audio"
+              testID="action-mic"
+            >
+              <Text style={{ fontSize: 20 }}>{'🎤'}</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             onPress={onPickImage}
             style={{
@@ -179,8 +182,8 @@ export const DiaryEntryForm = memo(function DiaryEntryForm({
         </View>
       </View>
 
-      {/* Audio preview */}
-      {audioUri ? (
+      {/* Audio preview — native only */}
+      {Platform.OS !== 'web' && audioUri ? (
         <View
           style={{
             flexDirection: 'row',

@@ -190,8 +190,8 @@ export default function NewEntryScreen() {
           testID="new-entry-text-input"
         />
 
-        {/* Audio chip (shown when audio is attached) */}
-        {audioUri !== null && (
+        {/* Audio chip (shown when audio is attached — native only) */}
+        {Platform.OS !== 'web' && audioUri !== null && (
           <View
             style={[
               styles.audioChip,
@@ -254,22 +254,24 @@ export default function NewEntryScreen() {
             { borderTopColor: colors.border, backgroundColor: colors.surface },
           ]}
         >
-          <Pressable
-            onPress={handleRecordAudio}
-            style={({ pressed }) => [
-              styles.toolbarBtn,
-              {
-                backgroundColor: audioUri ? colors.accentLight : colors.surface2,
-                borderColor: audioUri ? colors.accent : colors.border,
-                opacity: pressed ? 0.7 : 1,
-              },
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel="Record audio"
-            testID="toolbar-mic"
-          >
-            <Text style={styles.toolbarIcon}>{'🎤'}</Text>
-          </Pressable>
+          {Platform.OS !== 'web' && (
+            <Pressable
+              onPress={handleRecordAudio}
+              style={({ pressed }) => [
+                styles.toolbarBtn,
+                {
+                  backgroundColor: audioUri ? colors.accentLight : colors.surface2,
+                  borderColor: audioUri ? colors.accent : colors.border,
+                  opacity: pressed ? 0.7 : 1,
+                },
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Record audio"
+              testID="toolbar-mic"
+            >
+              <Text style={styles.toolbarIcon}>{'🎤'}</Text>
+            </Pressable>
+          )}
 
           <Pressable
             onPress={handlePickImage}

@@ -140,6 +140,23 @@ export async function createDiaryImage(
   return data as DiaryImage;
 }
 
+export async function getDistinctDiaryDays(userId: string): Promise<number> {
+  const { data, error } = await supabase
+    .from('diary_entries')
+    .select('entry_date')
+    .eq('user_id', userId)
+    .order('entry_date', { ascending: false })
+    .limit(100);
+
+  if (error) {
+    logger.error('getDistinctDiaryDays failed', { userId, error: error.message });
+    return 0;
+  }
+
+  const uniqueDays = new Set((data ?? []).map((row) => row.entry_date));
+  return uniqueDays.size;
+}
+
 // ─── Platform Configs ─────────────────────────────────────────────────────────
 
 export async function getPlatformConfigs(userId: string): Promise<PlatformConfig[]> {
