@@ -22,6 +22,7 @@ import {
   buildTweetPrompt,
 } from "./prompts.ts";
 import { contentTools } from "./schemas.ts";
+import { humaniseText } from "./humanise.ts";
 
 const MODEL = MODELS.CONTENT_GENERATION;
 
@@ -216,6 +217,33 @@ Deno.serve(async (req: Request) => {
       (toolInput.conceptDescription as string) ??
       null;
 
+    // Humanise pass — rewrite to remove AI-isms
+    const humanisedBody = await humaniseText(bodyText, { functionName, userId });
+
+    // For threads, humanise each tweet individually
+    let humanisedThreadTweets = threadTweets;
+    if (contentType === "thread" && threadTweets) {
+      const tweetArray = threadTweets as Array<{ order: number; text: string }>;
+      const humanisedTweets = [];
+      for (const tweet of tweetArray) {
+        const humanisedText = await humaniseText(tweet.text, { functionName, userId });
+        humanisedTweets.push({ order: tweet.order, text: humanisedText });
+      }
+      humanisedThreadTweets = humanisedTweets;
+    }
+
+    // For carousels, humanise each slide body
+    let humanisedCarouselSlides = carouselSlides;
+    if (contentType === "carousel" && carouselSlides) {
+      const slideArray = carouselSlides as Array<{ slideNumber: number; heading: string; bodyText: string; imagePrompt: string }>;
+      const humanisedSlides = [];
+      for (const slide of slideArray) {
+        const humanisedSlideText = await humaniseText(slide.bodyText, { functionName, userId });
+        humanisedSlides.push({ ...slide, bodyText: humanisedSlideText });
+      }
+      humanisedCarouselSlides = humanisedSlides;
+    }
+
     const { data: newPost, error: insertError } = await supabaseAdmin
       .from("generated_posts")
       .insert({
@@ -224,15 +252,16 @@ Deno.serve(async (req: Request) => {
         platform,
         content_type: contentType,
         title: (toolInput.title as string) ?? null,
-        body_text: bodyText,
-        carousel_slides: carouselSlides ?? null,
-        thread_tweets: threadTweets ?? null,
+        body_text: humanisedBody,
+        carousel_slides: humanisedCarouselSlides ?? null,
+        thread_tweets: humanisedThreadTweets ?? null,
         image_prompt: imagePrompt,
         status: "draft",
         generation_metadata: {
           model: MODEL,
           tool: tool.function.name,
           generatedAt: new Date().toISOString(),
+          humanised: true,
         },
       })
       .select()
