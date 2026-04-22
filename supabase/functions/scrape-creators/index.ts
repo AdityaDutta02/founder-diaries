@@ -4,6 +4,8 @@ import { logger } from "../_shared/logger.ts";
 import { supabaseAdmin } from "../_shared/supabaseAdmin.ts";
 import { ScrapeCreatorsRequestSchema } from "../_shared/validators.ts";
 import type { Platform } from "../_shared/types.ts";
+import { buildNicheHash, getNicheCache, setNicheCache } from "../_shared/nicheCache.ts";
+import type { CachedCreator } from "../_shared/types.ts";
 import { scrapeLinkedIn } from "./platforms/linkedin.ts";
 import { scrapeInstagram } from "./platforms/instagram.ts";
 import { scrapeTwitter } from "./platforms/twitter.ts";
@@ -32,6 +34,72 @@ function computeEngagementScore(
 ): number {
   if (followers === 0) return 0;
   return (likes + comments * 2 + shares * 3) / followers;
+}
+
+const TOP_CREATORS = 5;
+const TOP_POSTS_PER_CREATOR = 10;
+
+function computeAvgEngagement(creator: CreatorSample): number {
+  if (creator.posts.length === 0) return 0;
+  const total = creator.posts.reduce((sum, post) => {
+    return sum + computeEngagementScore(
+      post.likesCount,
+      post.commentsCount,
+      post.sharesCount,
+      creator.followerCount,
+    );
+  }, 0);
+  return total / creator.posts.length;
+}
+
+function rankAndTrim(creators: CreatorSample[]): CachedCreator[] {
+  const ranked = creators
+    .map((c) => ({ creator: c, avgEngagement: computeAvgEngagement(c) }))
+    .sort((a, b) => b.avgEngagement - a.avgEngagement)
+    .slice(0, TOP_CREATORS);
+
+  return ranked.map(({ creator, avgEngagement }) => {
+    const scoredPosts = creator.posts
+      .map((post) => ({
+        ...post,
+        engagementScore: computeEngagementScore(
+          post.likesCount,
+          post.commentsCount,
+          post.sharesCount,
+          creator.followerCount,
+        ),
+      }))
+      .sort((a, b) => b.engagementScore - a.engagementScore)
+      .slice(0, TOP_POSTS_PER_CREATOR);
+
+    return {
+      handle: creator.handle,
+      name: creator.name,
+      profileUrl: creator.profileUrl,
+      followerCount: creator.followerCount,
+      bio: creator.bio,
+      avgEngagement,
+      posts: scoredPosts,
+    };
+  });
+}
+
+function cachedToCreatorSamples(cached: CachedCreator[]): CreatorSample[] {
+  return cached.map((c) => ({
+    handle: c.handle,
+    name: c.name,
+    profileUrl: c.profileUrl,
+    followerCount: c.followerCount,
+    bio: c.bio,
+    posts: c.posts.map((p) => ({
+      contentText: p.contentText,
+      contentType: p.contentType,
+      likesCount: p.likesCount,
+      commentsCount: p.commentsCount,
+      sharesCount: p.sharesCount,
+      postedAt: p.postedAt,
+    })),
+  }));
 }
 
 async function upsertCreatorData(
@@ -143,24 +211,54 @@ Deno.serve(async (req: Request) => {
 
     for (const platform of platforms) {
       try {
-        let creators: CreatorSample[] = [];
+        const nicheHash = await buildNicheHash(platform, nicheKeywords);
 
-        if (platform === "linkedin") {
-          creators = await scrapeLinkedIn(nicheKeywords, industry);
-        } else if (platform === "instagram") {
-          creators = await scrapeInstagram(nicheKeywords, industry);
-        } else if (platform === "x") {
-          creators = await scrapeTwitter(nicheKeywords, industry);
+        // 1. Check cache
+        const cached = await getNicheCache(platform, nicheHash);
+
+        let creatorsToSave: CreatorSample[];
+
+        if (cached) {
+          logger.info("Using cached creators", {
+            functionName,
+            userId,
+            metadata: { platform, nicheHash, cachedCount: cached.length },
+          });
+          creatorsToSave = cachedToCreatorSamples(cached);
+        } else {
+          // 2. Scrape fresh
+          let rawCreators: CreatorSample[] = [];
+
+          if (platform === "linkedin") {
+            rawCreators = await scrapeLinkedIn(nicheKeywords, industry);
+          } else if (platform === "instagram") {
+            rawCreators = await scrapeInstagram(nicheKeywords, industry);
+          } else if (platform === "x") {
+            rawCreators = await scrapeTwitter(nicheKeywords, industry);
+          }
+
+          // 3. Rank and trim to top 5 creators, top 10 posts each
+          const trimmed = rankAndTrim(rawCreators);
+
+          // 4. Write to shared cache
+          await setNicheCache(platform, nicheHash, nicheKeywords, trimmed);
+
+          creatorsToSave = cachedToCreatorSamples(trimmed);
+
+          logger.info("Platform scrape completed and cached", {
+            functionName,
+            userId,
+            metadata: {
+              platform,
+              rawCreators: rawCreators.length,
+              trimmedCreators: trimmed.length,
+            },
+          });
         }
 
-        const savedCount = await upsertCreatorData(userId, platform, creators);
+        // 5. Upsert to per-user tables
+        const savedCount = await upsertCreatorData(userId, platform, creatorsToSave);
         results[platform] = savedCount;
-
-        logger.info(`Platform scrape completed`, {
-          functionName,
-          userId,
-          metadata: { platform, creatorsScraped: creators.length, creatorsSaved: savedCount },
-        });
       } catch (platformError) {
         logger.error(`Failed to scrape ${platform}`, {
           functionName,
