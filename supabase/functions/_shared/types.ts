@@ -74,3 +74,41 @@ export interface ContentWritingProfile {
   example_hooks: string[];
   hashtag_strategy: Record<string, unknown> | null;
 }
+
+export interface CachedCreator {
+  handle: string;
+  name: string;
+  profileUrl: string;
+  followerCount: number;
+  bio: string;
+  avgEngagement: number;
+  posts: {
+    contentText: string;
+    contentType: "post" | "carousel" | "thread" | "reel_caption" | "story";
+    likesCount: number;
+    commentsCount: number;
+    sharesCount: number;
+    postedAt: string | null;
+    engagementScore: number;
+  }[];
+}
+
+export interface NicheCreatorCache {
+  id: string;
+  platform: Platform;
+  niche_hash: string;
+  niche_keywords: string[];
+  creators: CachedCreator[];
+  expires_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserWritingInstruction {
+  id: string;
+  user_id: string;
+  platform: Platform;
+  instructions: string;
+  created_at: string;
+  updated_at: string;
+}
