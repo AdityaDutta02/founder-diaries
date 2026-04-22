@@ -203,3 +203,14 @@ export interface UserActivityLog {
   metadata: Record<string, unknown> | null;
   created_at: string;
 }
+
+// ─── user_writing_instructions ────────────────────────────────────────────
+
+export interface UserWritingInstruction {
+  id: string;
+  user_id: string;
+  platform: Platform;
+  instructions: string;
+  created_at: string;
+  updated_at: string;
+}

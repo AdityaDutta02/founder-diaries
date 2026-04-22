@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/lib/logger';
-import type { Profile, DiaryEntry, DiaryImage, PlatformConfig, CreatorProfile, CreatorContentSample, ContentWritingProfile, GeneratedPost, Platform, PostStatus } from '@/types/database';
+import type { Profile, DiaryEntry, DiaryImage, PlatformConfig, CreatorProfile, CreatorContentSample, ContentWritingProfile, GeneratedPost, Platform, PostStatus, UserWritingInstruction } from '@/types/database';
 
 // ─── Profile ─────────────────────────────────────────────────────────────────
 
@@ -375,4 +375,68 @@ export async function updatePostContent(
   }
 
   return data as GeneratedPost;
+}
+
+// ─── Writing Instructions ────────────────────────────────────────────────
+
+export async function getWritingInstructions(
+  userId: string,
+): Promise<UserWritingInstruction[]> {
+  const { data, error } = await supabase
+    .from('user_writing_instructions')
+    .select('*')
+    .eq('user_id', userId);
+
+  if (error) {
+    logger.error('getWritingInstructions failed', { userId, error: error.message });
+    throw new Error(`Failed to fetch writing instructions: ${error.message}`);
+  }
+
+  return (data ?? []) as UserWritingInstruction[];
+}
+
+export async function getWritingInstruction(
+  userId: string,
+  platform: Platform,
+): Promise<UserWritingInstruction | null> {
+  const { data, error } = await supabase
+    .from('user_writing_instructions')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('platform', platform)
+    .maybeSingle();
+
+  if (error) {
+    logger.error('getWritingInstruction failed', { userId, platform, error: error.message });
+    throw new Error(`Failed to fetch writing instruction: ${error.message}`);
+  }
+
+  return data as UserWritingInstruction | null;
+}
+
+export async function upsertWritingInstruction(
+  userId: string,
+  platform: Platform,
+  instructions: string,
+): Promise<UserWritingInstruction> {
+  const { data, error } = await supabase
+    .from('user_writing_instructions')
+    .upsert(
+      {
+        user_id: userId,
+        platform,
+        instructions,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_id,platform' },
+    )
+    .select()
+    .single();
+
+  if (error) {
+    logger.error('upsertWritingInstruction failed', { userId, platform, error: error.message });
+    throw new Error(`Failed to save writing instruction: ${error.message}`);
+  }
+
+  return data as UserWritingInstruction;
 }
