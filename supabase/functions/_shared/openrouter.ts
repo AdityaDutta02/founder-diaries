@@ -7,11 +7,13 @@ const APP_URL = "https://founderdiaries.app";
 /** OpenRouter model constants — select the right model for each job */
 export const MODELS = {
   /** Creative writing, voice matching, tool use — best quality */
-  CONTENT_GENERATION: "anthropic/claude-sonnet-4",
+  CONTENT_GENERATION: "deepseek/deepseek-chat-v3-0324",
   /** Analytical tasks, JSON extraction — fast + cheap */
   ANALYSIS: "google/gemini-2.5-flash",
   /** Image generation via multimodal model */
   IMAGE_GENERATION: "google/gemini-2.5-flash",
+  /** Post-generation humanise pass — cheap + fast */
+  HUMANISE: "deepseek/deepseek-chat-v3-0324",
 } as const;
 
 /** Anthropic-style tool → OpenAI-style tool */
