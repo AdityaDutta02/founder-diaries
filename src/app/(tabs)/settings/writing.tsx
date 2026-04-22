@@ -37,9 +37,8 @@ export default function WritingStyleScreen() {
   const userId = useAuthStore((s) => s.session?.user.id);
 
   const [selectedPlatform, setSelectedPlatform] = useState<Platform>('linkedin');
-  const [instructions, setInstructions] = useState<Record<Platform, string>>({
+  const [instructions, setInstructions] = useState<Record<string, string>>({
     linkedin: '',
-    instagram: '',
     x: '',
   });
   const [isLoading, setIsLoading] = useState(true);
@@ -53,7 +52,7 @@ export default function WritingStyleScreen() {
       try {
         const data = await getWritingInstructions(userId!);
         if (cancelled) return;
-        const map: Record<Platform, string> = { linkedin: '', instagram: '', x: '' };
+        const map: Record<string, string> = { linkedin: '', x: '' };
         for (const row of data) {
           map[row.platform] = row.instructions;
         }

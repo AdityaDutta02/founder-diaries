@@ -130,12 +130,20 @@ Deno.serve(async (req: Request) => {
     const industry = profile?.industry ?? "technology";
 
     // Fetch user's custom writing instructions for this platform
-    const { data: writingInstructionRow } = await supabaseAdmin
+    const { data: writingInstructionRow, error: instructionError } = await supabaseAdmin
       .from("user_writing_instructions")
       .select("instructions")
       .eq("user_id", userId)
       .eq("platform", platform)
       .maybeSingle();
+
+    if (instructionError) {
+      logger.warn("Failed to fetch writing instructions", {
+        functionName,
+        userId,
+        metadata: { platform, error: instructionError.message },
+      });
+    }
 
     const userInstructions = writingInstructionRow?.instructions ?? null;
 
@@ -229,11 +237,9 @@ Deno.serve(async (req: Request) => {
       (toolInput.conceptDescription as string) ??
       null;
 
-    // Humanise pass — rewrite to remove AI-isms
-    const humanisedBody = await humaniseText(bodyText, { functionName, userId });
-
-    // For threads, humanise each tweet individually
+    // For threads, humanise each tweet individually and derive body from them
     let humanisedThreadTweets = threadTweets;
+    let humanisedBody: string;
     if (contentType === "thread" && threadTweets) {
       const tweetArray = threadTweets as Array<{ order: number; text: string }>;
       const humanisedTweets = [];
@@ -242,6 +248,10 @@ Deno.serve(async (req: Request) => {
         humanisedTweets.push({ order: tweet.order, text: humanisedText });
       }
       humanisedThreadTweets = humanisedTweets;
+      humanisedBody = humanisedTweets.map((t) => t.text).join("\n\n");
+    } else {
+      // Humanise pass — rewrite to remove AI-isms
+      humanisedBody = await humaniseText(bodyText, { functionName, userId });
     }
 
     // For carousels, humanise each slide body

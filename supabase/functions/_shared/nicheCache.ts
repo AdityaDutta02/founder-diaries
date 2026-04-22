@@ -33,7 +33,7 @@ export async function getNicheCache(
     .select("creators, expires_at")
     .eq("platform", platform)
     .eq("niche_hash", nicheHash)
-    .single();
+    .maybeSingle();
 
   if (error || !data) return null;
 

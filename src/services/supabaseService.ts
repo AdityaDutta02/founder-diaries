@@ -384,7 +384,7 @@ export async function getWritingInstructions(
 ): Promise<UserWritingInstruction[]> {
   const { data, error } = await supabase
     .from('user_writing_instructions')
-    .select('*')
+    .select('id, user_id, platform, instructions, created_at, updated_at')
     .eq('user_id', userId);
 
   if (error) {
@@ -401,7 +401,7 @@ export async function getWritingInstruction(
 ): Promise<UserWritingInstruction | null> {
   const { data, error } = await supabase
     .from('user_writing_instructions')
-    .select('*')
+    .select('id, user_id, platform, instructions, created_at, updated_at')
     .eq('user_id', userId)
     .eq('platform', platform)
     .maybeSingle();
