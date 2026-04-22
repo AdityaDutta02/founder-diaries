@@ -38,8 +38,17 @@ export const DiaryWeekStrip = memo(function DiaryWeekStrip({
   const weekStart = startOfWeek(addWeeks(today, weekOffset), { weekStartsOn: 1 });
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
-  const goToPrevWeek = useCallback(() => setWeekOffset((o) => o - 1), []);
-  const goToNextWeek = useCallback(() => setWeekOffset((o) => o + 1), []);
+  const goToPrevWeek = useCallback(() => {
+    const newStart = startOfWeek(addWeeks(today, weekOffset - 1), { weekStartsOn: 1 });
+    setWeekOffset((o) => o - 1);
+    onChangeMonth(newStart);
+  }, [weekOffset, today, onChangeMonth]);
+
+  const goToNextWeek = useCallback(() => {
+    const newStart = startOfWeek(addWeeks(today, weekOffset + 1), { weekStartsOn: 1 });
+    setWeekOffset((o) => o + 1);
+    onChangeMonth(newStart);
+  }, [weekOffset, today, onChangeMonth]);
 
   const toggleExpanded = useCallback(() => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -58,9 +67,9 @@ export const DiaryWeekStrip = memo(function DiaryWeekStrip({
     .onEnd((event) => {
       if (Math.abs(event.translationY) > 40) return; // ignore vertical swipes
       if (event.translationX > 50) {
-        setWeekOffset((o) => o - 1);
+        goToPrevWeek();
       } else if (event.translationX < -50) {
-        setWeekOffset((o) => o + 1);
+        goToNextWeek();
       }
     });
 

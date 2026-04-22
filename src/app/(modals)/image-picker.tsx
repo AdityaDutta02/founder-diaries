@@ -88,11 +88,11 @@ export default function ImagePickerModal() {
 
   const handleDone = useCallback(() => {
     setPendingImageUris(selectedUris);
-    router.back();
+    router.dismiss();
   }, [selectedUris, setPendingImageUris, router]);
 
   const handleClose = useCallback(() => {
-    router.back();
+    router.dismiss();
   }, [router]);
 
   return (

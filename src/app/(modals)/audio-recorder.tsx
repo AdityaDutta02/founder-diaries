@@ -123,7 +123,7 @@ export default function AudioRecorderModal() {
     if (!Audio) return;
     try {
       const { status } = await Audio.requestPermissionsAsync();
-      if (status !== 'granted') { router.back(); return; }
+      if (status !== 'granted') { router.dismiss(); return; }
       await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
       const { recording } = await Audio.Recording.createAsync(
         Audio.RecordingOptionsPresets.HIGH_QUALITY,
@@ -136,7 +136,7 @@ export default function AudioRecorderModal() {
       logger.error('Failed to start recording', {
         error: err instanceof Error ? err.message : String(err),
       });
-      router.back();
+      router.dismiss();
     }
   }, [startTimer, startWave, router]);
 
@@ -173,12 +173,12 @@ export default function AudioRecorderModal() {
       const uri = recordingRef.current.getURI();
       recordingRef.current = null;
       if (uri) { setAudioUri(uri); setRecorderState('preview'); }
-      else { router.back(); }
+      else { router.dismiss(); }
     } catch (err) {
       logger.error('Failed to stop recording', {
         error: err instanceof Error ? err.message : String(err),
       });
-      router.back();
+      router.dismiss();
     }
   }, [stopTimer, stopWave, router]);
 
@@ -229,13 +229,13 @@ export default function AudioRecorderModal() {
   const handleDiscard = useCallback(async () => {
     try { await soundRef.current?.unloadAsync(); } catch { /* swallow */ }
     soundRef.current = null;
-    router.back();
+    router.dismiss();
   }, [router]);
 
   const handleUseRecording = useCallback(() => {
     if (!audioUri) return;
     setPendingAudioUri(audioUri);
-    router.back();
+    router.dismiss();
   }, [audioUri, setPendingAudioUri, router]);
 
   const handleClose = useCallback(async () => {
@@ -245,7 +245,7 @@ export default function AudioRecorderModal() {
     try { await soundRef.current?.unloadAsync(); } catch { /* swallow */ }
     recordingRef.current = null;
     soundRef.current = null;
-    router.back();
+    router.dismiss();
   }, [stopTimer, stopWave, router]);
 
   // Auto-start on mount

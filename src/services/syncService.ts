@@ -86,14 +86,26 @@ export async function processQueueItem(item: SyncQueueItem): Promise<void> {
           throw new Error(`sync-diary edge function error: ${error.message}`);
         }
 
-        if (data?.synced?.length) {
+        if (!data || !Array.isArray(data.synced)) {
+          logger.warn('sync-diary returned unexpected response', {
+            hasData: !!data,
+            syncedType: typeof data?.synced,
+          });
+          throw new Error('sync-diary returned malformed response — missing synced array');
+        }
+
+        if (data.synced.length > 0) {
           const synced = data.synced[0];
-          if (synced) {
+          if (synced?.remoteId) {
             await db.runAsync(
               `UPDATE diary_entries SET sync_status = 'synced', remote_id = ?, updated_at = datetime('now')
                WHERE local_id = ?`,
               [synced.remoteId, payload.localId],
             );
+          } else {
+            logger.warn('sync-diary returned synced entry without remoteId', {
+              localId: payload.localId,
+            });
           }
         }
         break;

@@ -1,4 +1,6 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
+import { AppState } from 'react-native';
+import type { AppStateStatus } from 'react-native';
 import { logger } from '@/lib/logger';
 import { useSyncStore } from '@/stores/syncStore';
 import { syncPendingEntries, getSyncQueueCount } from '@/services/syncService';
@@ -21,8 +23,11 @@ export function useDiarySync(): UseDiarySyncReturn {
     setLastSync,
   } = useSyncStore();
 
+  const isSyncingRef = useRef(isSyncing);
+  isSyncingRef.current = isSyncing;
+
   const triggerSync = useCallback(async (): Promise<void> => {
-    if (isSyncing) {
+    if (isSyncingRef.current) {
       logger.debug('Sync already in progress — skipping');
       return;
     }
@@ -45,12 +50,12 @@ export function useDiarySync(): UseDiarySyncReturn {
       logger.info('Sync complete', { remaining });
     } catch (err) {
       logger.error('Sync failed', { error: String(err) });
-      throw err;
     } finally {
       setSyncing(false);
     }
-  }, [isSyncing, setSyncing, setPendingCount, setLastSync]);
+  }, [setSyncing, setPendingCount, setLastSync]);
 
+  // Sync on mount
   useEffect(() => {
     async function initSync() {
       try {
@@ -66,9 +71,30 @@ export function useDiarySync(): UseDiarySyncReturn {
     }
 
     void initSync();
-    // Only run on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Sync when app returns to foreground
+  useEffect(() => {
+    const handleAppState = (nextState: AppStateStatus) => {
+      if (nextState === 'active') {
+        logger.debug('App foregrounded — triggering sync');
+        void triggerSync();
+      }
+    };
+
+    const sub = AppState.addEventListener('change', handleAppState);
+    return () => sub.remove();
+  }, [triggerSync]);
+
+  // Periodic sync every 30s — catches network recovery and retries
+  useEffect(() => {
+    const interval = setInterval(() => {
+      void triggerSync();
+    }, 30_000);
+
+    return () => clearInterval(interval);
+  }, [triggerSync]);
 
   return { isSyncing, pendingCount, lastSyncAt, triggerSync };
 }

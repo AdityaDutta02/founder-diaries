@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { Platform } from 'react-native';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/lib/logger';
 
@@ -138,6 +139,60 @@ export const useDiaryStore = create<DiaryStore>()((set, get) => ({
           images: [],
         });
       }
+
+      // On native, load images and audio URIs from local SQLite
+      if (Platform.OS !== 'web') {
+        try {
+          const { getDatabase } = await import('@/lib/sqlite');
+          const db = getDatabase();
+
+          // Restore audio_local_uri from SQLite entries
+          const localEntries = await db.getAllAsync<{
+            local_id: string;
+            audio_local_uri: string | null;
+          }>('SELECT local_id, audio_local_uri FROM diary_entries WHERE audio_local_uri IS NOT NULL');
+
+          for (const local of localEntries) {
+            const entry = entries.get(local.local_id);
+            if (entry) {
+              entry.audio_local_uri = local.audio_local_uri;
+            }
+          }
+
+          // Restore images from SQLite diary_images table
+          const imageRows = await db.getAllAsync<{
+            local_id: string;
+            diary_local_id: string;
+            local_uri: string;
+            sync_status: string;
+            remote_id: string | null;
+            created_at: string;
+          }>('SELECT * FROM diary_images');
+
+          for (const img of imageRows) {
+            const entry = entries.get(img.diary_local_id);
+            if (entry) {
+              entry.images.push({
+                local_id: img.local_id,
+                diary_local_id: img.diary_local_id,
+                local_uri: img.local_uri,
+                sync_status: img.sync_status as 'pending' | 'synced' | 'failed',
+                remote_id: img.remote_id,
+                created_at: img.created_at,
+              });
+            }
+          }
+          logger.debug('Local data restored from SQLite', {
+            audioCount: localEntries.length,
+            imageCount: imageRows.length,
+          });
+        } catch (localErr) {
+          logger.warn('Failed to load local data from SQLite', {
+            error: localErr instanceof Error ? localErr.message : String(localErr),
+          });
+        }
+      }
+
       set({ entries });
       logger.info('Diary entries hydrated from Supabase', { count: entries.size });
     } catch (err) {

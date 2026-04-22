@@ -67,15 +67,36 @@ export async function stopRecording(): Promise<string> {
   return uri;
 }
 
-export async function playAudio(uri: string): Promise<Audio.Sound> {
+export type PlaybackStatusCallback = (status: {
+  positionMillis: number;
+  durationMillis: number | undefined;
+  didJustFinish: boolean;
+  isPlaying: boolean;
+}) => void;
+
+export async function playAudio(
+  uri: string,
+  onStatus?: PlaybackStatusCallback,
+): Promise<Audio.Sound> {
   if (activeSound) {
     await activeSound.unloadAsync();
     activeSound = null;
   }
 
-  const { sound } = await Audio.Sound.createAsync({ uri });
+  const { sound } = await Audio.Sound.createAsync(
+    { uri },
+    { shouldPlay: true },
+    (status) => {
+      if (!status.isLoaded) return;
+      onStatus?.({
+        positionMillis: status.positionMillis,
+        durationMillis: status.durationMillis,
+        didJustFinish: status.didJustFinish ?? false,
+        isPlaying: status.isPlaying,
+      });
+    },
+  );
   activeSound = sound;
-  await sound.playAsync();
   logger.debug('Audio playback started', { uri });
   return sound;
 }

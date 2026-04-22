@@ -66,10 +66,13 @@ export const DiaryCalendar = memo(function DiaryCalendar({
     [onSelectDate],
   );
 
-  // Build grid cells: blanks + days
+  // Build grid cells: blanks + days + trailing blanks to complete last row
+  const leadingAndDays = leadingBlanks + days.length;
+  const trailingBlanks = (7 - (leadingAndDays % 7)) % 7;
   const gridCells: (Date | null)[] = [
     ...Array<null>(leadingBlanks).fill(null),
     ...days,
+    ...Array<null>(trailingBlanks).fill(null),
   ];
 
   return (
@@ -162,7 +165,7 @@ export const DiaryCalendar = memo(function DiaryCalendar({
             return (
               <View
                 key={`blank-${idx}`}
-                style={{ width: `${100 / 7}%`, aspectRatio: 1 }}
+                style={{ flex: 1, minHeight: 36 }}
               />
             );
           }
@@ -187,7 +190,7 @@ export const DiaryCalendar = memo(function DiaryCalendar({
               : colors.textSecondary;
 
           return (
-            <View key={dateStr} style={{ width: `${100 / 7}%`, alignItems: 'center', paddingVertical: 2 }}>
+            <View key={dateStr} style={{ flex: 1, alignItems: 'center', paddingVertical: 2 }}>
               <Pressable
                 onPress={() => handleSelectDay(date)}
                 style={{
@@ -221,9 +224,15 @@ export const DiaryCalendar = memo(function DiaryCalendar({
                 </Text>
               </Pressable>
               {/* Orange dot below circle for days with entries */}
-              {hasEntry && !isTodayDate ? (
+              {hasEntry ? (
                 <View
-                  style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: colors.accent, marginTop: 2 }}
+                  style={{
+                    width: 4,
+                    height: 4,
+                    borderRadius: 2,
+                    backgroundColor: isTodayDate ? colors.accentText : colors.accent,
+                    marginTop: 2,
+                  }}
                   testID={`entry-dot-${dateStr}`}
                 />
               ) : (

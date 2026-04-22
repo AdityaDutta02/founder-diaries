@@ -39,6 +39,13 @@ try {
   // Will be null in Expo Go; handled in handlePlayAudio
 }
 
+function formatMs(ms: number): string {
+  const totalSec = Math.floor(ms / 1000);
+  const min = Math.floor(totalSec / 60);
+  const sec = totalSec % 60;
+  return `${String(min)}:${String(sec).padStart(2, '0')}`;
+}
+
 const MOOD_EMOJI: Record<string, string> = {
   energized: '⚡',
   productive: '🎯',
@@ -62,6 +69,8 @@ export default function EntryDetailScreen() {
 
   const [sound, setSound] = useState<AVSound | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [playbackMs, setPlaybackMs] = useState(0);
+  const [durationMs, setDurationMs] = useState(0);
 
   const handlePlayAudio = useCallback(async () => {
     if (!Audio) {
@@ -88,8 +97,12 @@ export default function EntryDetailScreen() {
         { uri: entry.audio_local_uri },
         { shouldPlay: true },
         (status: AVPlaybackStatus) => {
-          if (status.isLoaded && status.didJustFinish) {
+          if (!status.isLoaded) return;
+          setPlaybackMs(status.positionMillis);
+          if (status.durationMillis) setDurationMs(status.durationMillis);
+          if (status.didJustFinish) {
             setIsPlaying(false);
+            setPlaybackMs(0);
           }
         },
       );
@@ -283,16 +296,32 @@ export default function EntryDetailScreen() {
                   {isPlaying ? '⏸' : '▶'}
                 </Text>
               </Pressable>
-              <View style={{ flex: 1 }}>
-                <Text
+              <View style={{ flex: 1, gap: 4 }}>
+                <View
                   style={{
-                    ...typography.bodyMd,
-                    color: colors.accent,
-                    letterSpacing: 2,
+                    height: 4,
+                    borderRadius: 2,
+                    backgroundColor: colors.border,
+                    overflow: 'hidden',
                   }}
                 >
-                  {'▬▬▬▬▬▬▬▬▬▬▬▬'}
-                </Text>
+                  <View
+                    style={{
+                      height: 4,
+                      borderRadius: 2,
+                      backgroundColor: colors.accent,
+                      width: durationMs > 0 ? `${(playbackMs / durationMs) * 100}%` : '0%',
+                    }}
+                  />
+                </View>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <Text style={{ ...typography.label, color: colors.textMuted }}>
+                    {formatMs(playbackMs)}
+                  </Text>
+                  <Text style={{ ...typography.label, color: colors.textMuted }}>
+                    {formatMs(durationMs)}
+                  </Text>
+                </View>
               </View>
             </View>
           </View>
