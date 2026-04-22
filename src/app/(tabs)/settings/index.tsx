@@ -201,6 +201,13 @@ export default function SettingsScreen() {
               onPress={() => router.push('/(tabs)/settings/platforms')}
               testID="menu-platforms"
             />
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+            <MenuRow
+              icon="✍️"
+              label="Writing Style"
+              onPress={() => router.push('/(tabs)/settings/writing')}
+              testID="menu-writing-style"
+            />
           </SectionCard>
         </View>
 

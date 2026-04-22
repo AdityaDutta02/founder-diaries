@@ -8,6 +8,7 @@ export default function SettingsLayout() {
       <Stack.Screen name="account" />
       <Stack.Screen name="export" />
       <Stack.Screen name="notifications" />
+      <Stack.Screen name="writing" />
     </Stack>
   );
 }
