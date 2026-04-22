@@ -12,7 +12,7 @@ import {
   type ChatMessage,
 } from "../_shared/openrouter.ts";
 
-const MODEL = MODELS.CONTENT_GENERATION;
+const MODEL = MODELS.ANALYSIS;
 const TOP_SAMPLES_LIMIT = 50;
 
 const WritingProfileTool = {
