@@ -170,6 +170,8 @@ export default function AudioRecorderModal() {
     try {
       if (!recordingRef.current) return;
       await recordingRef.current.stopAndUnloadAsync();
+      // Switch audio mode from recording → playback so sound routes through speaker
+      await Audio?.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true });
       const uri = recordingRef.current.getURI();
       recordingRef.current = null;
       if (uri) { setAudioUri(uri); setRecorderState('preview'); }

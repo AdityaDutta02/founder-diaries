@@ -28,6 +28,7 @@ type AudioModule = {
       onPlaybackStatusUpdate?: ((status: AVPlaybackStatus) => void) | null,
     ) => Promise<{ sound: AVSound }>;
   };
+  setAudioModeAsync: (mode: { allowsRecordingIOS: boolean; playsInSilentModeIOS: boolean }) => Promise<void>;
 };
 
 let Audio: AudioModule | null = null;
@@ -92,6 +93,9 @@ export default function EntryDetailScreen() {
       }
 
       if (!entry?.audio_local_uri) return;
+
+      // Ensure audio mode is set for playback (not recording)
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true });
 
       const { sound: newSound } = await Audio.Sound.createAsync(
         { uri: entry.audio_local_uri },

@@ -405,3 +405,37 @@ flowchart TD
 | Settings | Sign Out | Confirm → Sign In | Action |
 | Writing Style | Tab: LinkedIn/X | Switch platform | Action |
 | Writing Style | Save Instructions | Upsert to DB | Submit |
+
+---
+
+## UX Flow Audit (2026-04-23)
+
+Verified all 28 screens exist as route files. Verified all 43 button/action inventory items have corresponding `onPress` handlers and navigation calls. Below are the gaps found.
+
+### CRITICAL — Must fix before release
+
+| # | Gap | Diagram says | Code reality | Impact |
+|---|-----|-------------|--------------|--------|
+| 1 | **Entry Detail: no delete button** | "🗑️ Delete btn → Confirm → Delete → Diary Home" | `[date].tsx` has Edit button + Edit FAB only. `deleteEntry` hook exists but is never wired to a UI control. | Users cannot delete diary entries. Dead feature. |
+| 2 | **Content → Diary navigation broken** | "View Source Entry btn → Entry Detail" | `[postId].tsx:325` pushes `/(tabs)/diary/${post.diary_entry_id}` where `diary_entry_id` is a UUID — but `[date].tsx` route expects a date string (`yyyy-MM-dd`). Entry detail will show "Entry not found". | Cross-tab link is dead. |
+| 3 | **Post Detail: no Copy button** | "Copy → Copy to clipboard" | `[postId].tsx` has no clipboard import or copy handler. | Users can't copy generated content — defeats the purpose. |
+| 4 | **Post Detail: no Preview navigation** | "Preview → Post Preview Modal" | `[postId].tsx` never navigates to `/(modals)/post-preview`. The post-preview modal (650 lines) exists but is unreachable from any screen. | Orphan screen, zero usage. |
+
+### IMPORTANT — Should fix before release
+
+| # | Gap | Details |
+|---|-----|---------|
+| 5 | **New Entry: audio chip has no playback duration** | Chip shows "Audio recorded" with play/remove (just added) but no time indicator. Users don't know how long their recording is. |
+| 6 | **New Entry: no image thumbnails** | Image picker saves URIs to state, badge shows count, but new entry screen never renders the selected images. Users can't see or remove individual images before saving. |
+| 7 | **question-answer.tsx uses router.back() not router.dismiss()** | Should use `router.dismiss()` for consistency with other modals. Works but may break on deep navigation stacks. |
+| 8 | **Edit Entry: no image display** | `edit/[localId].tsx` has an image picker button but doesn't display already-attached images from the entry being edited. |
+
+### MINOR — Polish before v1.1
+
+| # | Gap | Details |
+|---|-----|---------|
+| 9 | **No image full-screen viewer** | Entry detail shows 100x100 thumbnails but tapping them does nothing. Should open a full-screen lightbox. |
+| 10 | **No streak badge in diary header** | Diagram shows "🔥 Streak badge" on Diary Home but no streak display exists in `diary/index.tsx`. `getDaysWithEntries()` exists in store but is unused. |
+| 11 | **No offline banner** | Diagram shows "Offline banner" on Diary Home. No offline detection or banner in `diary/index.tsx`. |
+| 12 | **Discovery countdown not rendered** | Diagram shows "Discovery Countdown: X/7 days" on Diary Home. No countdown UI in `diary/index.tsx`. The `discovery_unlocked` flag exists in profile but is only checked on Discover tab. |
+| 13 | **Content queue screen is a flat list** | Diagram shows "Content Queue Modal — Pending items" but `queue.tsx` is a regular stack screen, not a modal. No "Queue btn" on content index to reach it. |

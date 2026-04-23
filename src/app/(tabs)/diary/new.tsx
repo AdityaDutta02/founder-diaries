@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -14,10 +14,21 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Crypto from 'expo-crypto';
 import { format } from 'date-fns';
+import type { Sound as AVSound } from 'expo-av/build/Audio/Sound';
+import type { AVPlaybackStatus } from 'expo-av/build/AV';
 import { useDiaryEntry } from '@/hooks/useDiaryEntry';
 import { useUIStore, type ToastVariant } from '@/stores/uiStore';
 import { useTheme } from '@/theme/ThemeContext';
 import { typography, fontFamily } from '@/theme/typography';
+import { logger } from '@/lib/logger';
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- expo-av types vary between builds
+let Audio: any = null;
+try {
+  Audio = require('expo-av').Audio;
+} catch {
+  // null in Expo Go
+}
 import { spacing, borderRadius } from '@/theme/spacing';
 
 const MOODS: { emoji: string; label: string }[] = [
@@ -47,6 +58,8 @@ export default function NewEntryScreen() {
   const [mood, setMood] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [audioUri, setAudioUri] = useState<string | null>(null);
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const audioSoundRef = useRef<AVSound | null>(null);
   const [images, setImages] = useState<Array<{ local_id: string; local_uri: string }>>([]);
 
   const entryDateTime = format(new Date(), "MMM d, yyyy · h:mm a");
@@ -72,6 +85,49 @@ export default function NewEntryScreen() {
       setPendingImageUris([]);
     }
   }, [pendingImageUris, setPendingImageUris]);
+
+  // Cleanup audio on unmount
+  useEffect(() => {
+    return () => {
+      audioSoundRef.current?.unloadAsync().catch(() => {});
+    };
+  }, []);
+
+  const handlePlayAudioPreview = useCallback(async () => {
+    if (!audioUri || !Audio) return;
+    try {
+      if (isAudioPlaying && audioSoundRef.current) {
+        await audioSoundRef.current.pauseAsync();
+        setIsAudioPlaying(false);
+        return;
+      }
+      if (audioSoundRef.current) {
+        await audioSoundRef.current.playAsync();
+        setIsAudioPlaying(true);
+        return;
+      }
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true });
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: audioUri },
+        { shouldPlay: true },
+        (status: AVPlaybackStatus) => {
+          if (!status.isLoaded) return;
+          if (status.didJustFinish) setIsAudioPlaying(false);
+        },
+      );
+      audioSoundRef.current = sound;
+      setIsAudioPlaying(true);
+    } catch (err) {
+      logger.error('Audio preview failed', { error: err instanceof Error ? err.message : String(err) });
+    }
+  }, [audioUri, isAudioPlaying]);
+
+  const handleRemoveAudio = useCallback(async () => {
+    try { await audioSoundRef.current?.unloadAsync(); } catch { /* swallow */ }
+    audioSoundRef.current = null;
+    setIsAudioPlaying(false);
+    setAudioUri(null);
+  }, []);
 
   const handleCancel = useCallback(() => {
     router.back();
@@ -199,10 +255,27 @@ export default function NewEntryScreen() {
             ]}
             testID="new-entry-audio-chip"
           >
-            <Text style={styles.audioChipIcon}>{'🎤'}</Text>
-            <Text style={[styles.audioChipText, { color: colors.accent }]}>
+            <Pressable
+              onPress={handlePlayAudioPreview}
+              hitSlop={6}
+              accessibilityRole="button"
+              accessibilityLabel={isAudioPlaying ? 'Pause audio preview' : 'Play audio preview'}
+              testID="audio-chip-play"
+            >
+              <Text style={{ fontSize: 16 }}>{isAudioPlaying ? '⏸' : '▶️'}</Text>
+            </Pressable>
+            <Text style={[styles.audioChipText, { color: colors.accent, flex: 1 }]}>
               Audio recorded
             </Text>
+            <Pressable
+              onPress={handleRemoveAudio}
+              hitSlop={6}
+              accessibilityRole="button"
+              accessibilityLabel="Remove audio"
+              testID="audio-chip-remove"
+            >
+              <Text style={{ fontSize: 14, color: colors.textMuted }}>✕</Text>
+            </Pressable>
           </View>
         )}
 

@@ -7,7 +7,7 @@ import {
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PostHogProvider } from 'posthog-react-native';
 import { posthog } from '@/lib/posthog';
-import { Slot, router } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import Constants from 'expo-constants';
 import * as Font from 'expo-font';
@@ -221,7 +221,14 @@ function RootLayoutInner() {
   return (
     <>
       <StatusBar style={isDark ? 'light' : 'dark'} />
-      <Slot />
+      <Stack screenOptions={{ headerShown: false, animation: 'default' }}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="(auth)" />
+        <Stack.Screen name="(onboarding)" />
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="(modals)" options={{ presentation: 'transparentModal', animation: 'fade' }} />
+        <Stack.Screen name="+not-found" />
+      </Stack>
     </>
   );
 }
