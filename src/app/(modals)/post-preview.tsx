@@ -475,7 +475,7 @@ export default function PostPreviewModal() {
       >
         <Pressable
           style={styles.closeButton}
-          onPress={() => router.back()}
+          onPress={() => router.dismiss()}
           hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel="Close preview"
@@ -505,7 +505,7 @@ export default function PostPreviewModal() {
         ]}
       >
         <Pressable
-          onPress={() => router.back()}
+          onPress={() => router.dismiss()}
           hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel="Close preview"

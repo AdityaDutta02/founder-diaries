@@ -82,7 +82,7 @@ export default function QuestionAnswerModal() {
     async function fetchQuestion() {
       const userId = session?.user?.id;
       if (!userId) {
-        router.back();
+        router.dismiss();
         return;
       }
 
@@ -91,7 +91,7 @@ export default function QuestionAnswerModal() {
         if (!unanswered) {
           setModalState('empty');
           // Auto-close if there's nothing to answer
-          setTimeout(() => router.back(), 500);
+          setTimeout(() => router.dismiss(), 500);
           return;
         }
         setQuestion(unanswered);
@@ -101,7 +101,7 @@ export default function QuestionAnswerModal() {
         logger.error('Failed to fetch unanswered question', {
           error: err instanceof Error ? err.message : String(err),
         });
-        router.back();
+        router.dismiss();
       }
     }
 
@@ -110,7 +110,7 @@ export default function QuestionAnswerModal() {
 
   const handleSkip = useCallback(() => {
     Keyboard.dismiss();
-    router.back();
+    router.dismiss();
   }, [router]);
 
   const handleSubmit = useCallback(async () => {
@@ -123,14 +123,14 @@ export default function QuestionAnswerModal() {
       setModalState('success');
 
       // Show "Thanks" state briefly then close
-      setTimeout(() => router.back(), 1200);
+      setTimeout(() => router.dismiss(), 1200);
     } catch (err) {
       logger.error('Failed to submit enrichment answer', {
         error: err instanceof Error ? err.message : String(err),
         questionId: question.id,
       });
       // Still close gracefully — the answer may have saved
-      router.back();
+      router.dismiss();
     } finally {
       setIsSubmitting(false);
     }

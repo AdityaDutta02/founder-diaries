@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -13,6 +14,7 @@ import { Image } from 'expo-image';
 import type { Sound as AVSound } from 'expo-av/build/Audio/Sound';
 import type { AVPlaybackStatus } from 'expo-av/build/AV';
 import { useDiaryStore } from '@/stores/diaryStore';
+import { useDiaryEntry } from '@/hooks/useDiaryEntry';
 import { HeaderBar } from '@/components/layout/HeaderBar';
 import { useTheme } from '@/theme/ThemeContext';
 import { typography } from '@/theme/typography';
@@ -28,7 +30,13 @@ type AudioModule = {
       onPlaybackStatusUpdate?: ((status: AVPlaybackStatus) => void) | null,
     ) => Promise<{ sound: AVSound }>;
   };
-  setAudioModeAsync: (mode: { allowsRecordingIOS: boolean; playsInSilentModeIOS: boolean }) => Promise<void>;
+  setAudioModeAsync: (mode: {
+    allowsRecordingIOS: boolean;
+    playsInSilentModeIOS: boolean;
+    staysActiveInBackground?: boolean;
+    shouldDuckAndroid?: boolean;
+    playThroughEarpieceAndroid?: boolean;
+  }) => Promise<void>;
 };
 
 let Audio: AudioModule | null = null;
@@ -60,6 +68,7 @@ export default function EntryDetailScreen() {
   const router = useRouter();
   const { colors, shadows } = useTheme();
   const getEntriesForDate = useDiaryStore((state) => state.getEntriesForDate);
+  const { deleteEntry } = useDiaryEntry();
 
   const entries = useMemo(() => {
     if (!date) return [];
@@ -72,6 +81,7 @@ export default function EntryDetailScreen() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackMs, setPlaybackMs] = useState(0);
   const [durationMs, setDurationMs] = useState(0);
+  const [lightboxUri, setLightboxUri] = useState<string | null>(null);
 
   const handlePlayAudio = useCallback(async () => {
     if (!Audio) {
@@ -95,7 +105,13 @@ export default function EntryDetailScreen() {
       if (!entry?.audio_local_uri) return;
 
       // Ensure audio mode is set for playback (not recording)
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true });
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: false,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false,
+      });
 
       const { sound: newSound } = await Audio.Sound.createAsync(
         { uri: entry.audio_local_uri },
@@ -136,6 +152,32 @@ export default function EntryDetailScreen() {
   const handleBack = useCallback(() => {
     router.back();
   }, [router]);
+
+  const handleDelete = useCallback(() => {
+    if (!entry?.local_id) return;
+    Alert.alert(
+      'Delete Entry',
+      'This entry will be permanently deleted. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteEntry(entry.local_id);
+              router.back();
+            } catch (err) {
+              logger.error('Failed to delete entry', {
+                error: err instanceof Error ? err.message : String(err),
+              });
+              Alert.alert('Error', 'Failed to delete entry. Please try again.');
+            }
+          },
+        },
+      ],
+    );
+  }, [entry, deleteEntry, router]);
 
   if (!entry) {
     return (
@@ -199,15 +241,26 @@ export default function EntryDetailScreen() {
         title="Entry"
         showBack
         rightAction={
-          <Pressable
-            onPress={handleEdit}
-            style={{ paddingHorizontal: spacing.md, paddingVertical: spacing.xs }}
-            accessibilityRole="button"
-            accessibilityLabel="Edit entry"
-            testID="entry-edit-button"
-          >
-            <Text style={{ ...typography.button, color: colors.accent }}>Edit</Text>
-          </Pressable>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+            <Pressable
+              onPress={handleDelete}
+              style={{ paddingHorizontal: spacing.sm, paddingVertical: spacing.xs }}
+              accessibilityRole="button"
+              accessibilityLabel="Delete entry"
+              testID="entry-delete-button"
+            >
+              <Text style={{ ...typography.button, color: colors.error }}>Delete</Text>
+            </Pressable>
+            <Pressable
+              onPress={handleEdit}
+              style={{ paddingHorizontal: spacing.sm, paddingVertical: spacing.xs }}
+              accessibilityRole="button"
+              accessibilityLabel="Edit entry"
+              testID="entry-edit-button"
+            >
+              <Text style={{ ...typography.button, color: colors.accent }}>Edit</Text>
+            </Pressable>
+          </View>
         }
         testID="entry-header"
       />
@@ -345,8 +398,9 @@ export default function EntryDetailScreen() {
               {entry.images.map((image) => (
                 <Pressable
                   key={image.local_id}
+                  onPress={() => setLightboxUri(image.local_uri)}
                   accessibilityRole="imagebutton"
-                  accessibilityLabel="View image"
+                  accessibilityLabel="View image fullscreen"
                   testID={`entry-image-${image.local_id}`}
                 >
                   <Image
@@ -407,6 +461,55 @@ export default function EntryDetailScreen() {
       >
         <Text style={{ fontSize: 20, color: colors.accentText }}>{'✏️'}</Text>
       </Pressable>
+
+      {/* Image lightbox */}
+      <Modal
+        visible={lightboxUri !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setLightboxUri(null)}
+        testID="image-lightbox"
+      >
+        <Pressable
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.92)',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+          onPress={() => setLightboxUri(null)}
+          accessibilityRole="button"
+          accessibilityLabel="Close image viewer"
+        >
+          {lightboxUri && (
+            <Image
+              source={{ uri: lightboxUri }}
+              style={{ width: '90%', height: '70%' }}
+              contentFit="contain"
+              testID="lightbox-image"
+            />
+          )}
+          <Pressable
+            onPress={() => setLightboxUri(null)}
+            style={{
+              position: 'absolute',
+              top: 60,
+              right: 20,
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              backgroundColor: 'rgba(255,255,255,0.15)',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Close"
+            testID="lightbox-close"
+          >
+            <Text style={{ color: '#fff', fontSize: 18 }}>{'✕'}</Text>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }

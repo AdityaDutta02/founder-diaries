@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import * as Crypto from 'expo-crypto';
 import { format } from 'date-fns';
@@ -59,6 +60,7 @@ export default function NewEntryScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [audioUri, setAudioUri] = useState<string | null>(null);
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const [audioDurationMs, setAudioDurationMs] = useState(0);
   const audioSoundRef = useRef<AVSound | null>(null);
   const [images, setImages] = useState<Array<{ local_id: string; local_uri: string }>>([]);
 
@@ -106,12 +108,19 @@ export default function NewEntryScreen() {
         setIsAudioPlaying(true);
         return;
       }
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true });
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: false,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false,
+      });
       const { sound } = await Audio.Sound.createAsync(
         { uri: audioUri },
         { shouldPlay: true },
         (status: AVPlaybackStatus) => {
           if (!status.isLoaded) return;
+          if (status.durationMillis && status.durationMillis > 0) setAudioDurationMs(status.durationMillis);
           if (status.didJustFinish) setIsAudioPlaying(false);
         },
       );
@@ -127,6 +136,10 @@ export default function NewEntryScreen() {
     audioSoundRef.current = null;
     setIsAudioPlaying(false);
     setAudioUri(null);
+  }, []);
+
+  const handleRemoveImage = useCallback((localId: string) => {
+    setImages((prev) => prev.filter((img) => img.local_id !== localId));
   }, []);
 
   const handleCancel = useCallback(() => {
@@ -265,7 +278,9 @@ export default function NewEntryScreen() {
               <Text style={{ fontSize: 16 }}>{isAudioPlaying ? '⏸' : '▶️'}</Text>
             </Pressable>
             <Text style={[styles.audioChipText, { color: colors.accent, flex: 1 }]}>
-              Audio recorded
+              {audioDurationMs > 0
+                ? `Audio · ${Math.floor(audioDurationMs / 60000)}:${String(Math.floor((audioDurationMs % 60000) / 1000)).padStart(2, '0')}`
+                : 'Audio recorded'}
             </Text>
             <Pressable
               onPress={handleRemoveAudio}
@@ -277,6 +292,55 @@ export default function NewEntryScreen() {
               <Text style={{ fontSize: 14, color: colors.textMuted }}>✕</Text>
             </Pressable>
           </View>
+        )}
+
+        {/* Image thumbnails */}
+        {images.length > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{
+              paddingHorizontal: spacing.lg,
+              gap: spacing.sm,
+              paddingVertical: spacing.xs,
+            }}
+            testID="image-thumbnails"
+          >
+            {images.map((img) => (
+              <View key={img.local_id} style={{ position: 'relative' }}>
+                <Image
+                  source={{ uri: img.local_uri }}
+                  style={{
+                    width: 72,
+                    height: 72,
+                    borderRadius: borderRadius.md,
+                  }}
+                  contentFit="cover"
+                  testID={`image-thumb-${img.local_id}`}
+                />
+                <Pressable
+                  onPress={() => handleRemoveImage(img.local_id)}
+                  style={{
+                    position: 'absolute',
+                    top: -6,
+                    right: -6,
+                    width: 22,
+                    height: 22,
+                    borderRadius: 11,
+                    backgroundColor: colors.error,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                  hitSlop={6}
+                  accessibilityRole="button"
+                  accessibilityLabel="Remove image"
+                  testID={`remove-image-${img.local_id}`}
+                >
+                  <Text style={{ fontSize: 12, color: colors.white, lineHeight: 14 }}>{'✕'}</Text>
+                </Pressable>
+              </View>
+            ))}
+          </ScrollView>
         )}
 
         {/* Mood pills — horizontal scroll */}

@@ -124,7 +124,13 @@ export default function AudioRecorderModal() {
     try {
       const { status } = await Audio.requestPermissionsAsync();
       if (status !== 'granted') { router.dismiss(); return; }
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: false,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false,
+      });
       const { recording } = await Audio.Recording.createAsync(
         Audio.RecordingOptionsPresets.HIGH_QUALITY,
       );
@@ -171,7 +177,13 @@ export default function AudioRecorderModal() {
       if (!recordingRef.current) return;
       await recordingRef.current.stopAndUnloadAsync();
       // Switch audio mode from recording → playback so sound routes through speaker
-      await Audio?.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true });
+      await Audio?.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: false,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false,
+      });
       const uri = recordingRef.current.getURI();
       recordingRef.current = null;
       if (uri) { setAudioUri(uri); setRecorderState('preview'); }

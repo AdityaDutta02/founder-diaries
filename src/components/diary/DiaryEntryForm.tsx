@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useState } from 'react';
+import React, { memo, useCallback, useEffect, useState } from 'react';
 import {
   Platform,
   ScrollView,
@@ -51,6 +51,13 @@ export const DiaryEntryForm = memo(function DiaryEntryForm({
   const [localImages, setLocalImages] = useState<LocalDiaryImage[]>(
     initialEntry?.images ?? images,
   );
+
+  // Sync when parent adds new images (e.g. from image picker modal)
+  useEffect(() => {
+    if (images.length > localImages.length) {
+      setLocalImages(images);
+    }
+  }, [images]);
 
   const displayDate = entryDate ?? new Date();
   const formattedDate = format(displayDate, 'EEEE, MMMM d, yyyy');

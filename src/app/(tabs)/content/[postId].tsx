@@ -12,9 +12,11 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
 import { useContentStore } from '@/stores/contentStore';
+import { useDiaryStore } from '@/stores/diaryStore';
 import { useUIStore } from '@/stores/uiStore';
 import { supabase } from '@/lib/supabase';
 import * as contentGenerationService from '@/services/contentGenerationService';
+import * as Clipboard from 'expo-clipboard';
 import { useToast } from '@/components/ui';
 import { useTheme } from '@/theme/ThemeContext';
 import { fontFamily, typography } from '@/theme/typography';
@@ -54,8 +56,14 @@ function extractHashtags(text: string): string[] {
 export default function PostDetail() {
   const { colors } = useTheme();
   const { postId } = useLocalSearchParams<{ postId: string }>();
-  const post = useContentStore((s) => s.posts.find((p) => p.id === postId));
+  const posts = useContentStore((s) => s.posts);
+  const post = posts.find((p) => p.id === postId);
   const updatePost = useContentStore((s) => s.updatePost);
+
+  // Next/prev navigation
+  const currentIndex = posts.findIndex((p) => p.id === postId);
+  const prevPost = currentIndex > 0 ? posts[currentIndex - 1] : null;
+  const nextPost = currentIndex >= 0 && currentIndex < posts.length - 1 ? posts[currentIndex + 1] : null;
   const queryClient = useQueryClient();
   const toast = useToast();
   const pendingImageUris = useUIStore((s) => s.pendingImageUris);
@@ -193,6 +201,17 @@ export default function PostDetail() {
     router.push('/(modals)/image-picker' as never);
   }, []);
 
+  const handleCopyText = useCallback(async () => {
+    if (!editText) return;
+    await Clipboard.setStringAsync(editText);
+    toast.show('Copied to clipboard', 'success');
+  }, [editText, toast]);
+
+  const handlePreview = useCallback(() => {
+    if (!post) return;
+    router.push(`/(modals)/post-preview?postId=${post.id}` as never);
+  }, [post]);
+
   // ─── Derived ───────────────────────────────────────────────────────────────
 
   const charLimit = post ? (CHAR_LIMITS[post.platform] ?? 3000) : 3000;
@@ -239,7 +258,28 @@ export default function PostDetail() {
             {CONTENT_TYPE_LABELS[post.content_type] ?? 'Post'}
           </Text>
         </View>
-        <View style={styles.headerSpacer} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+          <Pressable
+            onPress={() => void handleCopyText()}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Copy post text"
+            testID="copy-btn"
+            style={{ padding: spacing.xs }}
+          >
+            <Text style={{ fontSize: 18 }}>{'📋'}</Text>
+          </Pressable>
+          <Pressable
+            onPress={handlePreview}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Preview post"
+            testID="preview-btn"
+            style={{ padding: spacing.xs }}
+          >
+            <Text style={{ fontSize: 18 }}>{'👁'}</Text>
+          </Pressable>
+        </View>
       </View>
 
       {/* Scrollable body */}
@@ -322,7 +362,20 @@ export default function PostDetail() {
         {/* Source reference */}
         {post.diary_entry_id ? (
           <Pressable
-            onPress={() => router.push(`/(tabs)/diary/${post.diary_entry_id}`)}
+            onPress={() => {
+              // diary_entry_id is the remote UUID — look up entry_date from diary store
+              const entries = useDiaryStore.getState().entries;
+              let entryDate: string | null = null;
+              for (const entry of entries.values()) {
+                if (entry.remote_id === post.diary_entry_id) {
+                  entryDate = entry.entry_date;
+                  break;
+                }
+              }
+              if (entryDate) {
+                router.push(`/(tabs)/diary/${entryDate}` as never);
+              }
+            }}
             style={[styles.sourceRef, { backgroundColor: colors.surface, borderColor: colors.border }]}
             accessibilityRole="button"
             accessibilityLabel="View source diary entry"
@@ -335,6 +388,36 @@ export default function PostDetail() {
             <Text style={[styles.sourceChevron, { color: colors.textMuted }]}>{'›'}</Text>
           </Pressable>
         ) : null}
+
+        {/* Prev / Next navigation */}
+        {(prevPost || nextPost) && (
+          <View style={styles.postNavRow} testID="post-nav">
+            {prevPost ? (
+              <Pressable
+                onPress={() => router.replace(`/content/${prevPost.id}` as never)}
+                style={[styles.postNavBtn, { borderColor: colors.border }]}
+                accessibilityRole="button"
+                accessibilityLabel="Previous post"
+                testID="prev-post-btn"
+              >
+                <Text style={[styles.postNavArrow, { color: colors.textSecondary }]}>{'‹'}</Text>
+                <Text style={[styles.postNavLabel, { color: colors.textSecondary }]} numberOfLines={1}>Prev</Text>
+              </Pressable>
+            ) : <View style={styles.postNavBtn} />}
+            {nextPost ? (
+              <Pressable
+                onPress={() => router.replace(`/content/${nextPost.id}` as never)}
+                style={[styles.postNavBtn, { borderColor: colors.border }]}
+                accessibilityRole="button"
+                accessibilityLabel="Next post"
+                testID="next-post-btn"
+              >
+                <Text style={[styles.postNavLabel, { color: colors.textSecondary }]} numberOfLines={1}>Next</Text>
+                <Text style={[styles.postNavArrow, { color: colors.textSecondary }]}>{'›'}</Text>
+              </Pressable>
+            ) : <View style={styles.postNavBtn} />}
+          </View>
+        )}
       </ScrollView>
 
       {/* Bottom bar: edit Save/Cancel or action bar */}
@@ -479,6 +562,35 @@ const styles = StyleSheet.create({
   sourceChevron: {
     fontSize: 18,
     lineHeight: 22,
+  },
+  // ─── Post navigation ────────────────────────────────────────────────────
+  postNavRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    marginTop: spacing.sm,
+  },
+  postNavBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  postNavArrow: {
+    fontSize: 18,
+    lineHeight: 22,
+    fontFamily: fontFamily.medium,
+  },
+  postNavLabel: {
+    fontFamily: fontFamily.medium,
+    fontSize: 13,
+    lineHeight: 18,
   },
   // ─── Save bar ─────────────────────────────────────────────────────────────
   saveBar: {
